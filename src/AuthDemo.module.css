@@ -196,6 +196,7 @@
 .lessonCard {
   grid-column: 2;
   grid-row: 2;
+  scroll-margin-top: 18px;
   background: #fff;
   border: 1px solid #eeedeb;
   border-radius: 22px;
@@ -207,38 +208,42 @@
 .lessonHeading {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 14px;
 }
-.eyebrow {
+.titleRow {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: #787285;
-  font-size: 12px;
-  font-weight: 500;
-  margin-bottom: 11px;
-}
-.eyebrow > span:first-child {
-  height: 6px;
-  width: 6px;
-  border-radius: 50%;
-  background: #8b5cf6;
-}
-.simulationBadge {
-  background: #f5f3ff;
-  color: #7c3aed;
-  border-radius: 4px;
-  font-size: 12px;
-  padding: 2px 6px;
-  margin-left: 3px;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  min-width: 0;
 }
 h1 {
-  font-size: 27px;
-  letter-spacing: -0.8px;
+  font-size: 23px;
+  letter-spacing: -0.6px;
   line-height: 1.5;
   margin: 0;
   font-weight: 800;
+}
+.playBubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  border: 1px solid #e4e3e0;
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 15px;
+  font-size: 13px;
+  color: #5f6260;
+  white-space: nowrap;
+}
+.playBubble svg {
+  color: #46494a;
+}
+.playBubble:hover {
+  background: #f7f6f9;
+  border-color: #d6d5d1;
 }
 .mobileBreak {
   display: none;
@@ -254,7 +259,7 @@ h1 {
   font-size: 12px;
   background: #fff;
   color: #7e807b;
-  margin-top: 25px;
+  flex: 0 0 auto;
 }
 .resetButton:hover {
   background: #f6f5f2;
@@ -1044,6 +1049,9 @@ h1 {
   gap: 12px;
   position: relative;
   min-height: 104px;
+  transition:
+    background 0.35s ease,
+    border-color 0.35s ease;
 }
 .inspectorIcon {
   width: 27px;
@@ -1053,36 +1061,22 @@ h1 {
   border-radius: 8px;
   color: #7c3aed;
   background: #ede9fe;
-  margin-top: 1px;
+  margin-top: 2px;
   flex-shrink: 0;
+  transition:
+    background 0.35s ease,
+    color 0.35s ease;
 }
 .inspectorContent {
   flex: 1;
   min-width: 0;
-}
-.inspectorHeading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 5px;
-}
-.explainLabel {
-  font-size: 12px;
-  color: #8574ad;
-  font-weight: 600;
-  letter-spacing: 1px;
-}
-.sceneCount {
-  margin-left: auto;
-  font-family: monospace;
-  color: #b0a4be;
-  font-size: 12px;
 }
 .inspector h3 {
   font-size: 15px;
   margin: 0 0 6px;
   color: #5b21b6;
   font-weight: 700;
+  transition: color 0.35s ease;
 }
 .inspector p {
   font-size: 16px;
@@ -1603,7 +1597,21 @@ h1 {
   color: #7c3aed;
 }
 .inspectorOpen {
-  background: #f2effd;
+  background: #fdf8ec;
+  border-color: #f1e4c2;
+}
+.inspectorOpen .inspectorIcon {
+  color: #b45309;
+  background: #fbeed0;
+}
+.inspectorOpen h3 {
+  color: #92400e;
+}
+.inspectorOpen p {
+  color: #7d6f57;
+}
+.inspectorOpen .closeInspector {
+  color: #ab8b5d;
 }
 .closeInspector {
   border: 0;
@@ -1620,7 +1628,7 @@ h1 {
   gap: 0 20px;
 }
 .detailRows > div {
-  border-top: 1px solid #e0daf3;
+  border-top: 1px solid #eddfbe;
   padding: 8px 0;
   display: flex;
   justify-content: space-between;
@@ -1630,12 +1638,12 @@ h1 {
   min-width: 0;
 }
 .detailRows dt {
-  color: #9b8da9;
+  color: #a58a5d;
   flex-shrink: 0;
 }
 .detailRows dd {
   margin: 0;
-  color: #645576;
+  color: #6b5940;
   font-size: 12px;
   overflow-wrap: anywhere;
   text-align: right;
@@ -1929,30 +1937,27 @@ h1 {
     position: relative;
     gap: 4px;
   }
-  .eyebrow {
-    font-size: 12px;
-    gap: 5px;
-    margin-bottom: 12px;
-    flex-wrap: wrap;
-    padding-right: 10px;
-  }
-  .eyebrow .simulationBadge {
-    font-size: 12px;
+  .titleRow {
+    padding-right: 42px;
+    gap: 8px 10px;
   }
   h1 {
-    font-size: 23px;
+    font-size: 20px;
     line-height: 1.55;
-    letter-spacing: -0.8px;
+    letter-spacing: -0.6px;
+  }
+  .playBubble {
+    font-size: 12px;
+    padding: 5px 12px;
   }
   .mobileBreak {
     display: block;
   }
   .resetButton {
-    margin-top: 0;
     padding: 7px;
     position: absolute;
     right: 0;
-    top: 43px;
+    top: 0;
     border: 0;
     background: #f7f6f9;
   }
@@ -2132,12 +2137,6 @@ h1 {
   .inspector p {
     font-size: 12px;
     line-height: 1.85;
-  }
-  .sceneCount {
-    font-size: 12px;
-  }
-  .explainLabel {
-    font-size: 12px;
   }
   .playback {
     min-height: 70px;

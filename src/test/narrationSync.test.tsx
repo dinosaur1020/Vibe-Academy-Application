@@ -143,6 +143,20 @@ describe('音訊驅動', () => {
     await time(400);
     expect(narrator().src).toContain('/audio/s1.m4a');
   });
+  it('標題旁的時間泡泡把整堂課倒回開頭', async () => {
+    useTimers();
+    render(<AuthDemo />);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Continue with Google' }),
+    );
+    await ends();
+    expect(screen.getByText('後端準備 Google 登入')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /從頭播放解說/ }));
+    await time(200);
+    expect(screen.getByText('一顆按鈕，開始一段幕後旅程')).toBeInTheDocument();
+    expect(clock().split(' / ')[0]).toBe('0:00');
+    expect(narrator().src).toContain('/audio/intro.m4a');
+  });
   it('暫停與檢查資料會一起停下旁白', async () => {
     useTimers();
     render(<AuthDemo />);

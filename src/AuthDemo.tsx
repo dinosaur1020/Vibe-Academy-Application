@@ -786,16 +786,6 @@ function Inspector({
         {details ? <Search size={20} /> : <Info size={20} />}
       </div>
       <div className={s.inspectorContent}>
-        <div className={s.inspectorHeading}>
-          <span className={s.explainLabel}>
-            {details ? '停下來，看看資料' : '幕後解說'}
-          </span>
-          {!details && (
-            <span className={s.sceneCount}>
-              0{steps[view.stage].scene} / 05
-            </span>
-          )}
-        </div>
         <h3 aria-live="polite">{details?.title || steps[view.stage].title}</h3>
         <p>{details?.detail || captionFor(view)}</p>
         {details ? (
@@ -901,10 +891,13 @@ function PlaybackControls({
         </span>
         <button
           className={s.playButton}
-          disabled={review || !!state.inspector}
+          disabled={review}
           aria-label={paused ? '繼續播放' : '暫停流程'}
           onClick={() => {
-            if (state.paused) dispatch({ type: 'PLAY' });
+            if (state.inspector) {
+              dispatch({ type: 'CLOSE' });
+              dispatch({ type: 'PLAY' });
+            } else if (state.paused) dispatch({ type: 'PLAY' });
             else if (narration.blocked) narration.resume();
             else dispatch({ type: 'PAUSE' });
           }}
@@ -1059,7 +1052,9 @@ export function AuthDemo() {
     google = useRef<HTMLDivElement>(null),
     db = useRef<HTMLDivElement>(null);
   const [refs] = useState(() => ({ browser, backend, google, db }));
+  const card = useRef<HTMLElement>(null);
   const waiting = isWaiting(state);
+  const lessonMinutes = Math.max(1, Math.round(playback.total / 60000));
   return (
     <>
       <header className={s.siteHeader}>
@@ -1098,19 +1093,31 @@ export function AuthDemo() {
           <ChevronRight size={12} />
           <span>身份驗證</span>
         </div>
-        <article className={s.lessonCard}>
+        <article className={s.lessonCard} ref={card}>
           <div className={s.lessonHeading}>
-            <div>
-              <div className={s.eyebrow}>
-                <span />
-                低門檻身份驗證與第三方登入
-                <span className={s.simulationBadge}>教學模擬</span>
-              </div>
+            <div className={s.titleRow}>
               <h1>
                 按下 Google 登入之後，
                 <br className={s.mobileBreak} />
                 發生了什麼？
               </h1>
+              <button
+                className={s.playBubble}
+                aria-label={`從頭播放解說，全長約 ${lessonMinutes} 分鐘`}
+                onClick={() => {
+                  playback.restart();
+                  card.current?.scrollIntoView?.({
+                    behavior: matchMedia('(prefers-reduced-motion: reduce)')
+                      .matches
+                      ? 'auto'
+                      : 'smooth',
+                    block: 'start',
+                  });
+                }}
+              >
+                <Play size={12} fill="currentColor" />
+                {lessonMinutes} 分鐘
+              </button>
             </div>
             <button
               className={s.resetButton}

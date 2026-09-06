@@ -74,6 +74,32 @@ describe('互動元件', () => {
     await time(2300);
     expect(screen.getByRole('button', { name: '繼續' })).toBeEnabled();
   });
+  it('檢查資料時仍可直接按播放繼續，不必先關面板', async () => {
+    vi.useFakeTimers({
+      toFake: [
+        'setTimeout',
+        'clearTimeout',
+        'requestAnimationFrame',
+        'cancelAnimationFrame',
+        'performance',
+      ],
+    });
+    render(<AuthDemo />);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Continue with Google' }),
+    );
+    await time(300);
+    fireEvent.click(screen.getByRole('button', { name: '檢查 Backend 狀態' }));
+    const play = screen.getByRole('button', { name: '繼續播放' });
+    expect(play).toBeEnabled();
+    fireEvent.click(play);
+    await time(100);
+    expect(
+      screen.queryByRole('button', { name: '關閉資料檢查' }),
+    ).not.toBeInTheDocument();
+    await time(2500);
+    expect(screen.getByRole('button', { name: '繼續' })).toBeEnabled();
+  });
   it('背景分頁暫停，返回後須主動續行', async () => {
     vi.useFakeTimers({
       toFake: [

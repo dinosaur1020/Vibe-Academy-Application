@@ -108,8 +108,10 @@ export function useNarration({
           setBlocked(false);
           setSpeaking(true);
         },
-        () => {
-          setBlocked(true);
+        (error: DOMException) => {
+          // Only a refused autoplay means "press play". An AbortError just says
+          // a later pause() or load() superseded this request.
+          if (error?.name === 'NotAllowedError') setBlocked(true);
           setSpeaking(false);
         },
       );

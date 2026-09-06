@@ -9,6 +9,7 @@ import {
 import {
   clipFor,
   clipOf,
+  cueFor,
   flightMs,
   initialState,
   reducer,
@@ -33,6 +34,8 @@ export interface Playback {
   flight: number;
   narration: Narration;
   seekTo: (ms: number) => void;
+  /** Rewind to the very start and play, straight from a user gesture. */
+  restart: () => void;
 }
 
 export function useFlow() {
@@ -111,6 +114,18 @@ export function useFlow() {
     [timeline, narration],
   );
 
+  const restart = useCallback(() => {
+    const staysOnIntro = cueFor(state) === 'intro';
+    dispatch({ type: 'RESET' });
+    setStartAt(0);
+    // When the cue changes, loading the new clip already restarts playback;
+    // rewinding here too would briefly play the outgoing clip.
+    if (staysOnIntro) {
+      narration.seek(0);
+      narration.resume();
+    }
+  }, [narration, state]);
+
   const position = segment
     ? segment.start + Math.min(state.elapsed, segment.ms)
     : 0;
@@ -124,6 +139,7 @@ export function useFlow() {
     flight: flightMs(stage, audioDriving ? clip?.ms : undefined),
     narration,
     seekTo,
+    restart,
   };
   return { state, dispatch, playback };
 }
