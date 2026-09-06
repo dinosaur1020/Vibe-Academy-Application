@@ -38,7 +38,7 @@ import {
 } from 'lucide-react';
 import {
   captionFor,
-  isGate,
+  isWaiting,
   sceneNames,
   steps,
   viewOf,
@@ -91,13 +91,16 @@ function PhonePreview({
   view,
   dispatch,
   locked,
+  waiting,
   nodeRef,
 }: {
   view: Snapshot;
   dispatch: Dispatch<Action>;
   locked: boolean;
+  waiting: boolean;
   nodeRef: RefObject<HTMLDivElement | null>;
 }) {
+  const cta = waiting ? ` ${s.cta}` : '';
   const consent = view.stage === 4;
   const ready = view.stage === 0;
   const done = view.stage === 17;
@@ -155,6 +158,7 @@ function PhonePreview({
                     取消
                   </button>
                   <button
+                    className={cta.trim()}
                     disabled={locked}
                     onClick={() => dispatch({ type: 'CONTINUE' })}
                   >
@@ -174,7 +178,7 @@ function PhonePreview({
                 </h2>
                 <p>用熟悉的帳號，輕鬆登入。</p>
                 <button
-                  className={s.googleButton}
+                  className={`${s.googleButton}${cta}`}
                   disabled={locked}
                   onClick={() => dispatch({ type: 'START' })}
                 >
@@ -205,7 +209,7 @@ function PhonePreview({
                   <CheckCheck size={16} /> 已登入 My App <span>user 42</span>
                 </div>
                 <button
-                  className={s.logoutButton}
+                  className={`${s.logoutButton}${cta}`}
                   disabled={locked}
                   onClick={() => dispatch({ type: 'LOGOUT' })}
                 >
@@ -497,10 +501,6 @@ function SystemMap({
               </div>
             </button>
           </div>
-          <div className={s.systemFootnote}>
-            <LockKeyhole size={12} />
-            Google 密碼不會交給你的 App
-          </div>
         </section>
       </div>
       <div className={s.systemCaption}>
@@ -599,14 +599,14 @@ function DataFlow({
             refY="3"
             orient="auto"
           >
-            <path d="M0 0 L6 3 L0 6Z" fill="#a48cf8" />
+            <path d="M0 0 L6 3 L0 6Z" fill="#8b5cf6" />
           </marker>
         </defs>
         <path
           ref={pathRef}
           d={geometry.path}
           fill="none"
-          stroke="#9d84f0"
+          stroke="#8b5cf6"
           strokeWidth="2"
           strokeDasharray="5 5"
           markerEnd={`url(#${markerId})`}
@@ -862,7 +862,7 @@ function PlaybackControls({
   const trackRef = useRef<HTMLDivElement>(null);
   const [scrubbing, setScrubbing] = useState(false);
   const review = state.review !== null;
-  const waiting = isGate(state.stage) && !review && !state.inspector;
+  const waiting = isWaiting(state);
   const paused = state.paused || narration.blocked;
   const canSeek = driving && !review && !state.inspector;
   const label = review
@@ -918,49 +918,50 @@ function PlaybackControls({
         <div className={s.playbackStatus}>
           <div className={s.playbackLabel}>
             <span>{label}</span>
-            <time className={s.clock}>
-              {formatTime(position)} / {formatTime(total)}
-            </time>
+            {waiting && <span className={s.waitingChip}>等你操作</span>}
           </div>
-          <div
-            ref={trackRef}
-            className={`${s.progressTrack} ${canSeek ? s.seekable : ''}`}
-            role="slider"
-            tabIndex={canSeek ? 0 : -1}
-            aria-label="解說進度"
-            aria-valuemin={0}
-            aria-valuemax={Math.round(total / 1000)}
-            aria-valuenow={Math.round(position / 1000)}
-            aria-valuetext={`${formatTime(position)} / ${formatTime(total)}`}
-            onPointerDown={(event) => {
-              if (!canSeek) return;
-              event.currentTarget.setPointerCapture(event.pointerId);
-              setScrubbing(true);
-              scrubTo(event.clientX);
-            }}
-            onPointerMove={(event) => scrubbing && scrubTo(event.clientX)}
-            onPointerUp={() => setScrubbing(false)}
-            onPointerCancel={() => setScrubbing(false)}
-            onKeyDown={(event) => {
-              if (!canSeek) return;
-              if (event.key === 'ArrowLeft') nudge(-5000);
-              else if (event.key === 'ArrowRight') nudge(5000);
-              else if (event.key === 'Home') seekTo(0);
-              else return;
-              event.preventDefault();
-            }}
-          >
-            <span
-              className={s.progressHeard}
-              style={{ width: `${total ? (unlocked / total) * 100 : 0}%` }}
-            />
-            <span
-              className={s.progressFill}
-              style={{ width: `${total ? (position / total) * 100 : 0}%` }}
-            />
+          <div className={s.trackRow}>
+            <time className={s.clock}>{formatTime(position)}</time>
+            <div
+              ref={trackRef}
+              className={`${s.progressTrack} ${canSeek ? s.seekable : ''}`}
+              role="slider"
+              tabIndex={canSeek ? 0 : -1}
+              aria-label="解說進度"
+              aria-valuemin={0}
+              aria-valuemax={Math.round(total / 1000)}
+              aria-valuenow={Math.round(position / 1000)}
+              aria-valuetext={`${formatTime(position)} / ${formatTime(total)}`}
+              onPointerDown={(event) => {
+                if (!canSeek) return;
+                event.currentTarget.setPointerCapture(event.pointerId);
+                setScrubbing(true);
+                scrubTo(event.clientX);
+              }}
+              onPointerMove={(event) => scrubbing && scrubTo(event.clientX)}
+              onPointerUp={() => setScrubbing(false)}
+              onPointerCancel={() => setScrubbing(false)}
+              onKeyDown={(event) => {
+                if (!canSeek) return;
+                if (event.key === 'ArrowLeft') nudge(-5000);
+                else if (event.key === 'ArrowRight') nudge(5000);
+                else if (event.key === 'Home') seekTo(0);
+                else return;
+                event.preventDefault();
+              }}
+            >
+              <span
+                className={s.progressHeard}
+                style={{ width: `${total ? (unlocked / total) * 100 : 0}%` }}
+              />
+              <span
+                className={s.progressFill}
+                style={{ width: `${total ? (position / total) * 100 : 0}%` }}
+              />
+            </div>
+            <time className={s.clock}>{formatTime(total)}</time>
           </div>
         </div>
-        {waiting && <span className={s.waitingChip}>等你操作</span>}
         <button
           className={s.rateButton}
           aria-label="播放速度"
@@ -1058,6 +1059,7 @@ export function AuthDemo() {
     google = useRef<HTMLDivElement>(null),
     db = useRef<HTMLDivElement>(null);
   const [refs] = useState(() => ({ browser, backend, google, db }));
+  const waiting = isWaiting(state);
   return (
     <>
       <header className={s.siteHeader}>
@@ -1150,7 +1152,8 @@ export function AuthDemo() {
               </li>
             ))}
           </ol>
-          <div className={s.experiment}>
+          <div className={`${s.experiment}${waiting ? ` ${s.spotlight}` : ''}`}>
+            <div className={s.scrim} aria-hidden="true" />
             {state.review !== null && (
               <div className={s.reviewBanner}>
                 <RotateCcw size={14} />
@@ -1163,6 +1166,7 @@ export function AuthDemo() {
                 view={view}
                 dispatch={dispatch}
                 locked={state.review !== null || !!state.inspector}
+                waiting={waiting}
                 nodeRef={browser}
               />
               <SystemMap

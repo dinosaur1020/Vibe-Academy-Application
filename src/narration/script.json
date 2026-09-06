@@ -1,7 +1,7 @@
 {
   "$comment": "旁白稿唯一來源。改完文字後執行 npm run narration 重新產生音檔與 manifest。字數 x 0.22 約等於秒數。",
   "voice": "Meijia",
-  "rate": 180,
+  "rate": 216,
   "budgetSeconds": 180,
   "lines": {
     "intro": "這個示範會帶你看見，按下 Google 登入之後，背後發生了什麼。準備好就按下登入按鈕。",

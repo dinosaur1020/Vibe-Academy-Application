@@ -1,137 +1,137 @@
 {
   "voice": "Meijia",
-  "rate": 180,
+  "rate": 216,
   "clips": {
     "intro": {
       "src": "/audio/intro.m4a",
-      "ms": 8219,
-      "hash": "fb23ff603e22",
+      "ms": 6957,
+      "hash": "3f38285b5664",
       "text": "這個示範會帶你看見，按下 Google 登入之後，背後發生了什麼。準備好就按下登入按鈕。"
     },
     "intro-again": {
       "src": "/audio/intro-again.m4a",
-      "ms": 5905,
-      "hash": "0bb51a223afc",
+      "ms": 4990,
+      "hash": "99bed31a5926",
       "text": "再登入一次。這次注意最後一步，資料庫裡已經有這位會員了。"
     },
     "s1": {
       "src": "/audio/s1.m4a",
-      "ms": 4257,
-      "hash": "ea3d6a8b73c9",
+      "ms": 3597,
+      "hash": "99742ddc0a86",
       "text": "瀏覽器先告訴自己的後端：我想用 Google 登入。"
     },
     "s2": {
       "src": "/audio/s2.m4a",
-      "ms": 5661,
-      "hash": "341661e852da",
+      "ms": 4793,
+      "hash": "14bffc48d342",
       "text": "後端準備登入請求，說明是哪個應用程式要確認身份。"
     },
     "s3": {
       "src": "/audio/s3.m4a",
-      "ms": 6358,
-      "hash": "8cd362ac5184",
+      "ms": 5385,
+      "hash": "91ba9d95dfdf",
       "text": "瀏覽器被帶到 Google。密碼只會交給 Google，不會交給你的應用程式。"
     },
     "s4": {
       "src": "/audio/s4.m4a",
-      "ms": 8483,
-      "hash": "e053bfb9dcc5",
+      "ms": 7174,
+      "hash": "5f25d543b297",
       "text": "現在你在 Google 的畫面上。要不要用這個帳號繼續，決定權在你。選好之後，按下繼續。"
     },
     "s5": {
       "src": "/audio/s5.m4a",
-      "ms": 9974,
-      "hash": "9cd6c94de145",
+      "ms": 8440,
+      "hash": "2a4cbff9ee6d",
       "text": "Google 確認了你是這個帳號的主人。但這只代表身份被確認，你的應用程式還沒讓你登入。這是兩件不同的事。"
     },
     "s6": {
       "src": "/audio/s6.m4a",
-      "ms": 4366,
-      "hash": "d276177abbd5",
+      "ms": 3691,
+      "hash": "f16a01dadb39",
       "text": "Google 透過瀏覽器，把一組一次性代碼帶回來。"
     },
     "s7": {
       "src": "/audio/s7.m4a",
-      "ms": 3630,
-      "hash": "9e364cdf24c6",
+      "ms": 3074,
+      "hash": "b4de94618406",
       "text": "瀏覽器再把這組代碼，交給自己的後端。"
     },
     "s8": {
       "src": "/audio/s8.m4a",
-      "ms": 10643,
-      "hash": "b197a7b56fe7",
+      "ms": 9008,
+      "hash": "519a9eb61868",
       "text": "拿到代碼，還不等於登入成功。它只是一張短效、而且只能用一次的兌換憑證，既不是密碼，也不是你的會員資料。"
     },
     "s9": {
       "src": "/audio/s9.m4a",
-      "ms": 4210,
-      "hash": "37352f5650f1",
+      "ms": 3562,
+      "hash": "dd16293c6c46",
       "text": "後端拿著代碼，直接向 Google 交換身分憑證。"
     },
     "s10": {
       "src": "/audio/s10.m4a",
-      "ms": 4877,
-      "hash": "f4605013847d",
+      "ms": 4133,
+      "hash": "3be7a046d379",
       "text": "Google 回傳一份身分憑證，裡面有這個人的基本資料。"
     },
     "s11": {
       "src": "/audio/s11.m4a",
-      "ms": 5883,
-      "hash": "8c97b33764c2",
+      "ms": 4980,
+      "hash": "4a9c923b619f",
       "text": "收到憑證還不夠，後端要先確認它是真的、而且是發給自己的。"
     },
     "s12": {
       "src": "/audio/s12.m4a",
-      "ms": 6006,
-      "hash": "5a1d37582722",
+      "ms": 5080,
+      "hash": "d8955bc3c3f0",
       "text": "憑證通過驗證。現在後端確定，這個 Google 身份是可以信任的。"
     },
     "s13": {
       "src": "/audio/s13.m4a",
-      "ms": 5419,
-      "hash": "c987fca4b883",
+      "ms": 4585,
+      "hash": "eb8a1dbb1821",
       "text": "接著用 Google 給的固定識別碼，到自己的會員資料庫裡查查看。"
     },
     "s14-new": {
       "src": "/audio/s14-new.m4a",
-      "ms": 7333,
-      "hash": "f9c23f00da25",
+      "ms": 6209,
+      "hash": "22b9176476f9",
       "text": "資料庫裡找不到這個身份。沒關係，第一次登入的人，本來就還沒有會員資料。"
     },
     "s14-found": {
       "src": "/audio/s14-found.m4a",
-      "ms": 8822,
-      "hash": "8d44d7dfc4f2",
+      "ms": 7468,
+      "hash": "4a420aeefe2d",
       "text": "找到了，這個 Google 身份已經對應到編號四十二的會員。同一個身份，永遠對應同一位會員。"
     },
     "s15": {
       "src": "/audio/s15.m4a",
-      "ms": 5487,
-      "hash": "e8da1f596be9",
+      "ms": 4642,
+      "hash": "9b664483bd48",
       "text": "所以應用程式用這個已確認的身份，替他建立一位新會員。"
     },
     "s16": {
       "src": "/audio/s16.m4a",
-      "ms": 4359,
-      "hash": "f655d7c484a7",
+      "ms": 3689,
+      "hash": "08bf311f5564",
       "text": "會員準備好了，接著建立這個瀏覽器的登入狀態。"
     },
     "s17-first": {
       "src": "/audio/s17-first.m4a",
-      "ms": 10583,
-      "hash": "ecdd3fb55d95",
+      "ms": 8949,
+      "hash": "490fb6fa941f",
       "text": "完成了。Google 負責確認你是誰，而你的應用程式，負責把這個身份對應到自己的會員。這就是第三方登入的全貌。"
     },
     "s17-return": {
       "src": "/audio/s17-return.m4a",
-      "ms": 10053,
-      "hash": "808b7d55d5f9",
+      "ms": 8501,
+      "hash": "d13e362ba8fd",
       "text": "這次不用再建立帳號。同一個 Google 身份，直接對應到原本那位會員，這就是為什麼第二次登入會這麼快。"
     },
     "cancel": {
       "src": "/audio/cancel.m4a",
-      "ms": 6184,
-      "hash": "d0a78cddc015",
+      "ms": 5235,
+      "hash": "d6e3a9461651",
       "text": "你取消了這次登入。沒有建立任何會員資料，隨時可以再試一次。"
     }
   }

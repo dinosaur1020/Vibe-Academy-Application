@@ -79,7 +79,7 @@
   text-align: center;
 }
 .avatarCircle {
-  width: clamp(84px, 7.6vw, 112px);
+  width: clamp(76px, 6.6vw, 96px);
   aspect-ratio: 1;
   border-radius: 50%;
   background: radial-gradient(
@@ -198,8 +198,8 @@
   grid-row: 2;
   background: #fff;
   border: 1px solid #eeedeb;
-  border-radius: 24px;
-  padding: 32px 34px 24px;
+  border-radius: 22px;
+  padding: 26px 28px 20px;
   box-shadow:
     0 3px 4px #29281f03,
     0 9px 28px #29281f04;
@@ -223,11 +223,11 @@
   height: 6px;
   width: 6px;
   border-radius: 50%;
-  background: #8f72c5;
+  background: #8b5cf6;
 }
 .simulationBadge {
-  background: #f4f2f8;
-  color: #8b7ba8;
+  background: #f5f3ff;
+  color: #7c3aed;
   border-radius: 4px;
   font-size: 12px;
   padding: 2px 6px;
@@ -260,7 +260,7 @@ h1 {
   background: #f6f5f2;
 }
 .intro {
-  margin: 12px 0 24px;
+  margin: 10px 0 18px;
   color: #717c8c;
   font-size: 16px;
   line-height: 1.8;
@@ -271,11 +271,11 @@ h1 {
 }
 .sceneStrip {
   list-style: none;
-  margin: 0 0 23px;
+  margin: 0 0 18px;
   padding: 0;
   display: flex;
   border-bottom: 1px solid #eeeef0;
-  padding-bottom: 17px;
+  padding-bottom: 14px;
   gap: 0;
 }
 .sceneStrip li {
@@ -307,12 +307,12 @@ h1 {
   flex: 0.76;
 }
 .sceneStrip .currentScene {
-  color: #7856c6;
+  color: #7c3aed;
 }
 .sceneStrip .currentScene > span {
-  background: #8b65d5;
+  background: #8b5cf6;
   color: #fff;
-  box-shadow: 0 0 0 3px #f3eefb;
+  box-shadow: 0 0 0 3px #ede9fe;
 }
 .sceneStrip .completedScene {
   color: #697181;
@@ -322,27 +322,74 @@ h1 {
   color: #42a278;
 }
 .experiment {
-  padding: 22px 22px 20px;
+  position: relative;
+  padding: 17px 17px 16px;
   background: #f8f8f9;
   border: 1px solid #f3f2f4;
   border-radius: 17px;
 }
+/* While the demo waits on a click, everything but the phone drops back and the
+   button to press keeps pulsing. */
+.scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  border-radius: inherit;
+  background: #0d1220;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.45s ease;
+}
+.spotlight .scrim {
+  opacity: 0.34;
+}
+/* Only the button to press sits above the scrim — the phone screen behind it
+   dims with everything else. */
+.spotlight .cta {
+  position: relative;
+  z-index: 7;
+}
+.cta {
+  /* Static ring survives prefers-reduced-motion, which kills the animation. */
+  box-shadow: 0 0 0 3px #8b5cf629;
+  animation: ctaPulse 2.2s ease-out infinite;
+}
+/* A borderless button needs its own surface to read as lifted out of the dim. */
+.logoutButton.cta {
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px 13px;
+}
+@keyframes ctaPulse {
+  0% {
+    box-shadow: 0 0 0 0 #8b5cf666;
+  }
+  70% {
+    box-shadow: 0 0 0 10px #8b5cf600;
+  }
+  100% {
+    box-shadow: 0 0 0 0 #8b5cf600;
+  }
+}
 .stageArea {
+  /* Both columns hang off one height so the phone and the last system
+     card end on the same line. */
+  --stage-h: 450px;
   position: relative;
   display: grid;
   grid-template-columns: 36% 1fr;
-  gap: 30px;
+  gap: 22px;
   align-items: start;
 }
 .areaLabel {
-  height: 29px;
+  height: 24px;
   display: flex;
   align-items: center;
   gap: 6px;
   font-weight: 600;
   font-size: 12px;
   color: #596475;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 .areaLabel > span:last-child {
   margin-left: auto;
@@ -356,22 +403,22 @@ h1 {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #528df4;
+  background: #3b82f6;
 }
 .purpleDot {
-  background: #9470dc;
+  background: #8b5cf6;
 }
 .phoneColumn {
-  padding: 0 10px;
+  padding: 0 6px;
 }
 .phone {
   width: 100%;
-  max-width: 294px;
-  min-height: 520px;
-  height: 520px;
+  max-width: 262px;
+  min-height: var(--stage-h);
+  height: var(--stage-h);
   background: #111a2b;
-  border-radius: 39px;
-  padding: 9px;
+  border-radius: 34px;
+  padding: 7px;
   margin: auto;
   box-shadow:
     0 12px 19px #17203412,
@@ -381,7 +428,7 @@ h1 {
 .phoneScreen {
   height: 100%;
   background: #fff;
-  border-radius: 30px;
+  border-radius: 27px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -445,7 +492,7 @@ h1 {
   color: #a3a8b0;
 }
 .phoneContent {
-  padding: 28px 20px 10px;
+  padding: 20px 17px 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -453,27 +500,27 @@ h1 {
   text-align: center;
 }
 .appLogo {
-  width: 56px;
-  height: 56px;
+  width: 50px;
+  height: 50px;
   display: grid;
   place-items: center;
-  border: 1px solid #e7dfef;
-  border-radius: 17px;
-  color: #9472c8;
+  border: 1px solid #ddd6fe;
+  border-radius: 15px;
+  color: #8b5cf6;
   background: linear-gradient(150deg, #faf7ff, #eee7f8);
-  box-shadow: 0 4px 7px #7652a00b;
+  box-shadow: 0 4px 7px #8b5cf60b;
 }
 .appName {
   font-size: 12px;
   letter-spacing: 0.5px;
   font-weight: 700;
   color: #3c4653;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 .phoneContent h2 {
   font-size: 23px;
   letter-spacing: -0.6px;
-  margin: 20px 0 8px;
+  margin: 14px 0 6px;
   line-height: 1.5;
   font-weight: 700;
   color: #263141;
@@ -494,7 +541,7 @@ h1 {
 }
 .googleButton {
   width: 100%;
-  margin-top: 22px;
+  margin-top: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -502,7 +549,7 @@ h1 {
   border: 1px solid #dcdfe5;
   background: white;
   border-radius: 8px;
-  padding: 12px 8px;
+  padding: 11px 8px;
   font-size: 14px;
   font-weight: 500;
   color: #3c4553;
@@ -523,15 +570,15 @@ h1 {
   gap: 5px;
   font-size: 12px;
   color: #9b9faa;
-  margin-top: 12px;
+  margin-top: 10px;
 }
 .startHint {
   display: flex;
   gap: 5px;
-  color: #a498b8;
+  color: #a094bd;
   font-size: 12px;
   align-items: center;
-  margin-top: 23px;
+  margin-top: 16px;
 }
 .phoneFootnote {
   display: flex;
@@ -540,14 +587,14 @@ h1 {
   gap: 4px;
   font-size: 12px;
   color: #a6aab2;
-  padding: 0 5px 13px;
+  padding: 0 5px 10px;
 }
 .homeIndicator {
   height: 4px;
   background: #263143;
   border-radius: 5px;
   width: 85px;
-  margin: 0 auto 7px;
+  margin: 0 auto 6px;
 }
 .phoneCaption {
   border: 0;
@@ -558,32 +605,36 @@ h1 {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  margin-top: 16px;
+  margin-top: 12px;
   color: #647082;
   font-weight: 500;
 }
 .phoneCaption > span {
   font-size: 12px;
-  background: #eaf1ff;
+  background: #eff5ff;
   border-radius: 20px;
-  color: #4c89f1;
+  color: #3b82f6;
   padding: 3px 8px;
 }
 .systemBoxes {
   display: grid;
-  gap: 16px;
+  grid-template-rows: auto 1fr;
+  min-height: var(--stage-h);
+  gap: 11px;
   color: #d6dfea;
 }
 .appGroup,
 .googleGroup {
   border: 1px solid #25344d;
-  border-radius: 17px;
-  padding: 17px;
+  border-radius: 15px;
+  padding: 13px;
   box-shadow: 0 10px 18px #1521370b;
   overflow: visible;
   background: linear-gradient(125deg, #111d31, #0c1627);
 }
 .googleGroup {
+  display: flex;
+  flex-direction: column;
   border-color: #2d4b53;
   background: linear-gradient(125deg, #10202f, #0b1926);
 }
@@ -592,7 +643,7 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 .systemCardHeading > div {
   display: flex;
@@ -615,9 +666,9 @@ h1 {
   width: 6px;
   height: 6px;
   flex: 0 0 auto;
-  background: #a698c0;
+  background: #a78bfa;
   border-radius: 50%;
-  box-shadow: 0 0 7px #ac8dec44;
+  box-shadow: 0 0 7px #8b5cf644;
 }
 .googleHeadingDot {
   background: #67c2a5;
@@ -630,7 +681,7 @@ h1 {
   color: #8498a7;
   font-size: 12px;
   border-top: 1px solid #25414a;
-  padding: 10px 0 12px;
+  padding: 8px 0 10px;
 }
 .liveBadge {
   font-family: inherit;
@@ -645,7 +696,7 @@ h1 {
 .appNodes {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 17px;
+  gap: 12px;
 }
 .node {
   border: 1px solid #2c3850;
@@ -654,7 +705,7 @@ h1 {
   transition:
     border-color 0.2s,
     box-shadow 0.2s;
-  --node-color: #a78af0;
+  --node-color: #a78bfa;
   min-width: 0;
 }
 .nodeButton {
@@ -663,7 +714,7 @@ h1 {
   text-align: left;
   background: none;
   border: 0;
-  padding: 13px 13px 0;
+  padding: 11px 11px 0;
   border-radius: 10px;
   color: inherit;
 }
@@ -692,15 +743,15 @@ h1 {
   display: block;
   color: #8190a7;
   font-size: 12px;
-  margin: 5px 0 0 25px;
+  margin: 4px 0 0 24px;
 }
 .rack {
-  padding: 9px 0 5px;
+  padding: 7px 0 4px;
   display: grid;
   gap: 5px;
 }
 .rack > div {
-  height: 20px;
+  height: 18px;
   border: 1px solid #2b3850;
   border-radius: 4px;
   display: flex;
@@ -732,7 +783,7 @@ h1 {
   display: flex;
   gap: 5px;
   align-items: center;
-  min-height: 26px;
+  min-height: 23px;
   white-space: normal;
 }
 .nodeStatus > span {
@@ -758,8 +809,8 @@ h1 {
   --node-color: #e0b774;
 }
 .databasePreview {
-  height: 59px;
-  padding-top: 12px;
+  height: 52px;
+  padding-top: 9px;
 }
 .tableHeader {
   display: flex;
@@ -809,17 +860,17 @@ h1 {
   color: #4ccea3;
 }
 .receiptSlot {
-  height: 25px;
-  padding: 0 13px 7px;
+  height: 23px;
+  padding: 0 11px 6px;
   display: flex;
   align-items: center;
 }
 .receipt,
 .memberChip {
   font-size: 12px;
-  color: #c1a9f5;
-  border: 1px solid #69548466;
-  background: #a37cee13;
+  color: #c4b5fd;
+  border: 1px solid #8b5cf655;
+  background: #8b5cf613;
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -852,6 +903,8 @@ h1 {
   background: #29344a;
 }
 .googleNode {
+  flex: 1;
+  display: flex;
   --node-color: #6fbba2;
   border: 1px solid transparent;
   border-radius: 10px;
@@ -860,7 +913,11 @@ h1 {
     box-shadow 0.2s;
 }
 .googleNode .nodeButton {
-  padding: 13px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 11px;
 }
 .googleNodeHeading {
   display: flex;
@@ -868,8 +925,8 @@ h1 {
   gap: 9px;
 }
 .googleIcon {
-  width: 32px;
-  height: 32px;
+  width: 29px;
+  height: 29px;
   background: #fff;
   border-radius: 9px;
   display: grid;
@@ -904,8 +961,8 @@ h1 {
 .googleServices {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  margin-top: 12px;
-  gap: 10px;
+  margin-top: 10px;
+  gap: 8px;
 }
 .googleServices > span {
   display: flex;
@@ -914,7 +971,7 @@ h1 {
   background: #101a2b;
   border: 1px solid #233147;
   border-radius: 6px;
-  padding: 8px;
+  padding: 7px;
   color: #b4bfd1;
   font-size: 12px;
 }
@@ -933,15 +990,6 @@ h1 {
   margin-left: auto;
   color: #5dc49f;
 }
-.systemFootnote {
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  color: #8391a6;
-  margin-top: 12px;
-}
 .systemCaption {
   font-size: 12px;
   display: flex;
@@ -949,8 +997,8 @@ h1 {
   justify-content: center;
   gap: 5px;
   color: #959ba5;
-  margin-top: 18px;
-  height: 19px;
+  margin-top: 14px;
+  height: 18px;
 }
 .flowOverlay {
   position: absolute;
@@ -967,8 +1015,8 @@ h1 {
   pointer-events: auto;
   position: absolute;
   transform: translate(-50%, -50%);
-  background: #f4efff;
-  border: 1px solid #bba1ed;
+  background: #f5f3ff;
+  border: 1px solid #c4b5fd;
   box-shadow: 0 3px 10px #0002;
   border-radius: 6px;
   display: flex;
@@ -976,35 +1024,35 @@ h1 {
   gap: 5px;
   white-space: nowrap;
   padding: 6px 8px;
-  color: #7756b3;
+  color: #6d28d9;
   font-size: 12px;
 }
 .packet > span {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #a278e7;
+  background: #8b5cf6;
 }
 .inspector {
-  margin-top: 22px;
-  background: #eeedf5;
-  border: 1px solid #e9e6f2;
+  margin-top: 17px;
+  background: #f3f0fb;
+  border: 1px solid #e9e4f8;
   border-radius: 10px;
-  padding: 17px 18px;
+  padding: 14px 15px;
   display: flex;
   align-items: flex-start;
   gap: 12px;
   position: relative;
-  min-height: 123px;
+  min-height: 104px;
 }
 .inspectorIcon {
-  width: 29px;
-  height: 29px;
+  width: 27px;
+  height: 27px;
   display: grid;
   place-items: center;
   border-radius: 8px;
-  color: #9777ce;
-  background: #e7dff4;
+  color: #7c3aed;
+  background: #ede9fe;
   margin-top: 1px;
   flex-shrink: 0;
 }
@@ -1020,7 +1068,7 @@ h1 {
 }
 .explainLabel {
   font-size: 12px;
-  color: #907ba9;
+  color: #8574ad;
   font-weight: 600;
   letter-spacing: 1px;
 }
@@ -1033,7 +1081,7 @@ h1 {
 .inspector h3 {
   font-size: 15px;
   margin: 0 0 6px;
-  color: #594875;
+  color: #5b21b6;
   font-weight: 700;
 }
 .inspector p {
@@ -1048,8 +1096,8 @@ h1 {
   position: fixed;
   z-index: 80;
   inset: auto 0 0;
-  min-height: 92px;
-  padding: 14px var(--side, 32px);
+  min-height: 76px;
+  padding: 11px var(--side, 32px);
   background: color-mix(in srgb, #fff 94%, transparent);
   border-top: 1px solid #e8e7e5;
   box-shadow: 0 -8px 26px #20242b0c;
@@ -1057,16 +1105,16 @@ h1 {
 }
 .playbackInner {
   max-width: var(--content-max, 1050px);
-  min-height: 62px;
+  min-height: 50px;
   margin: 0 auto;
   display: flex;
-  gap: 12px;
+  gap: 11px;
   align-items: center;
 }
 .dockAvatar {
   display: none;
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
@@ -1087,15 +1135,15 @@ h1 {
 }
 .dockAvatar[data-speaking='true'] {
   box-shadow:
-    0 0 0 3px #a78af033,
+    0 0 0 3px #8b5cf633,
     0 3px 9px #26333d24;
 }
 .playButton {
   border: 0;
   border-radius: 50%;
-  width: 33px;
-  height: 33px;
-  background: #31343a;
+  width: 31px;
+  height: 31px;
+  background: #252423;
   color: white;
   display: grid;
   place-items: center;
@@ -1107,7 +1155,6 @@ h1 {
   opacity: 1;
 }
 .playbackStatus {
-  max-width: 560px;
   flex: 1;
   min-width: 0;
 }
@@ -1121,19 +1168,24 @@ h1 {
   color: #82828a;
 }
 .clock {
-  margin-left: auto;
   font-family: monospace;
   font-size: 12px;
   color: #9d9ba6;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+.trackRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 7px;
+}
 .progressTrack {
   position: relative;
-  height: 5px;
+  flex: 1;
+  height: 4px;
   border-radius: 4px;
-  background: #eae7ef;
-  margin-top: 8px;
+  background: #e6e6e6;
   touch-action: none;
 }
 .progressTrack > span {
@@ -1146,10 +1198,10 @@ h1 {
 }
 /* Everything already narrated, so the unheard remainder reads as locked. */
 .progressHeard {
-  background: #dcd5ea;
+  background: #d4d4d6;
 }
 .progressFill {
-  background: #9b80cf;
+  background: #252423;
 }
 .seekable {
   cursor: pointer;
@@ -1160,24 +1212,21 @@ h1 {
   position: absolute;
   inset: -10px 0;
 }
-.seekable .progressFill::after {
+.progressFill::after {
   content: '';
   position: absolute;
-  right: -5px;
+  right: -6px;
   top: 50%;
-  width: 11px;
-  height: 11px;
+  width: 12px;
+  height: 12px;
   transform: translateY(-50%);
   border-radius: 50%;
-  background: #8a6cc4;
-  border: 2px solid #fff;
-  box-shadow: 0 1px 3px #2a234026;
-  opacity: 0;
-  transition: opacity 0.15s;
+  background: #252423;
+  transition: transform 0.15s;
 }
 .seekable:hover .progressFill::after,
 .seekable:focus-visible .progressFill::after {
-  opacity: 1;
+  transform: translateY(-50%) scale(1.18);
 }
 .progressTrack:focus-visible {
   outline: 3px solid #598eff;
@@ -1211,9 +1260,9 @@ h1 {
 .waitingChip {
   flex: 0 0 auto;
   font-size: 12px;
-  color: #7f66b4;
-  background: #f3eefb;
-  border: 1px solid #e5dbf6;
+  color: #6d28d9;
+  background: #ede9fe;
+  border: 1px solid #ddd6fe;
   border-radius: 999px;
   padding: 4px 10px;
   white-space: nowrap;
@@ -1221,11 +1270,11 @@ h1 {
 }
 @keyframes waitPulse {
   50% {
-    background: #ece3fa;
+    background: #e4dcfd;
   }
 }
 .logSection {
-  margin-top: 20px;
+  margin-top: 16px;
 }
 .logHeading,
 .logHeading > div {
@@ -1256,9 +1305,9 @@ h1 {
   color: #a3a6ad;
 }
 .logList {
-  max-height: 172px;
+  max-height: 150px;
   overflow: auto;
-  margin-top: 12px;
+  margin-top: 10px;
   scrollbar-width: thin;
   scrollbar-color: #d8d5df transparent;
 }
@@ -1291,13 +1340,13 @@ h1 {
   border: 1px solid transparent;
   border-bottom-color: #f0eff2;
   border-radius: 4px;
-  padding: 10px 9px;
+  padding: 8px 8px;
   text-align: left;
   color: #616f83;
   font-size: 14px;
 }
 .logEntry:hover {
-  background: #f7f5fb;
+  background: #f8f6ff;
 }
 .logEntry strong {
   font-weight: 500;
@@ -1323,8 +1372,8 @@ h1 {
   margin-left: 0;
 }
 .selectedLog {
-  background: #f2edf9;
-  border-color: #e5dbf3;
+  background: #f5f3ff;
+  border-color: #ddd6fe;
 }
 .pageFooter {
   grid-column: 2;
@@ -1332,7 +1381,7 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 19px 5px 0;
+  margin: 15px 5px 0;
   gap: 12px;
   color: #a09e9a;
   font-size: 12px;
@@ -1352,7 +1401,7 @@ h1 {
   color: #8f8d8a;
 }
 .pageFooter a:hover {
-  color: #745bb0;
+  color: #7c3aed;
 }
 .googleHeading {
   display: flex;
@@ -1368,7 +1417,7 @@ h1 {
 }
 .googleHeading + h2 {
   font-size: 23px;
-  margin-top: 27px;
+  margin-top: 20px;
 }
 .account {
   display: flex;
@@ -1376,17 +1425,17 @@ h1 {
   width: 100%;
   gap: 9px;
   border-block: 1px solid #edf0f3;
-  padding: 14px 0;
-  margin-top: 21px;
+  padding: 12px 0;
+  margin-top: 16px;
   text-align: left;
 }
 .avatar {
-  width: 31px;
-  height: 31px;
+  width: 29px;
+  height: 29px;
   display: grid;
   place-items: center;
-  background: #e7e0f0;
-  color: #8664ad;
+  background: #ede9fe;
+  color: #7c3aed;
   border-radius: 50%;
   font-size: 15px;
   font-weight: 600;
@@ -1416,7 +1465,7 @@ h1 {
   width: 100%;
   justify-content: space-between;
   margin-top: auto;
-  padding-top: 15px;
+  padding-top: 12px;
   gap: 6px;
 }
 .consentButtons button {
@@ -1436,14 +1485,14 @@ h1 {
   padding: 9px 14px;
 }
 .processingIcon {
-  margin-top: 38px;
-  width: 65px;
-  height: 65px;
-  background: #f3eef9;
+  margin-top: 28px;
+  width: 58px;
+  height: 58px;
+  background: #f5f3ff;
   border-radius: 20px;
   display: grid;
   place-items: center;
-  color: #a180cf;
+  color: #8b5cf6;
 }
 .processingIcon > svg:not(:first-child) {
   width: 30px;
@@ -1453,7 +1502,7 @@ h1 {
   margin-top: 25px;
 }
 .phoneProgress {
-  margin-top: 34px;
+  margin-top: 26px;
   background: #efecf4;
   height: 4px;
   width: 100%;
@@ -1463,7 +1512,7 @@ h1 {
 .phoneProgress span {
   display: block;
   height: 100%;
-  background: #a486d1;
+  background: #8b5cf6;
 }
 .progressCaption {
   display: flex;
@@ -1474,9 +1523,9 @@ h1 {
   color: #9e96aa;
 }
 .successAvatar {
-  margin-top: 32px;
-  width: 64px;
-  height: 64px;
+  margin-top: 26px;
+  width: 58px;
+  height: 58px;
   font-size: 30px;
   position: relative;
 }
@@ -1510,7 +1559,7 @@ h1 {
   width: 100%;
   font-size: 12px;
   color: #439a76;
-  margin-top: 24px;
+  margin-top: 18px;
 }
 .signedIn > span {
   margin-left: auto;
@@ -1524,7 +1573,7 @@ h1 {
   border: 0;
   background: none;
   color: #8c829d;
-  margin-top: 17px;
+  margin-top: 14px;
   font-size: 12px;
   padding: 8px;
 }
@@ -1543,18 +1592,18 @@ h1 {
   padding: 5px 8px;
   background: #ffffff88;
   border-radius: 5px;
-  color: #7e7194;
+  color: #6f6486;
 }
 .comparison > span:first-child {
   color: #5d9c85;
 }
 .comparison > button {
-  border: 1px solid #d9cbe9;
+  border: 1px solid #ddd6fe;
   cursor: pointer;
-  color: #815eaa;
+  color: #7c3aed;
 }
 .inspectorOpen {
-  background: #f1eef8;
+  background: #f2effd;
 }
 .closeInspector {
   border: 0;
@@ -1571,7 +1620,7 @@ h1 {
   gap: 0 20px;
 }
 .detailRows > div {
-  border-top: 1px solid #dfd8e9;
+  border-top: 1px solid #e0daf3;
   padding: 8px 0;
   display: flex;
   justify-content: space-between;
@@ -1596,10 +1645,10 @@ h1 {
   display: flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid #ded4ed;
+  border: 1px solid #ddd6fe;
   border-radius: 7px;
-  background: #faf8ff;
-  color: #8565b1;
+  background: #f8f6ff;
+  color: #7c3aed;
   font-size: 12px;
   padding: 7px 9px;
 }
@@ -1607,7 +1656,7 @@ h1 {
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #8767ac;
+  color: #7c3aed;
   font-size: 12px;
   padding: 0 0 14px;
 }
@@ -1621,30 +1670,24 @@ h1 {
     padding-top: 35px;
   }
   .lessonCard {
-    padding: 36px 38px 27px;
+    padding: 30px 32px 22px;
   }
   .experiment {
-    padding: 24px;
+    padding: 19px;
   }
   .stageArea {
-    gap: 35px;
-  }
-  .phone {
-    min-height: 540px;
-    height: 540px;
+    --stage-h: 470px;
+    gap: 26px;
   }
   .appGroup,
   .googleGroup {
-    padding: 20px;
+    padding: 16px;
   }
   .googleNode .nodeButton {
-    padding: 15px;
-  }
-  .systemFootnote {
-    margin-top: 15px;
+    padding: 13px;
   }
   .phoneContent {
-    padding-top: 32px;
+    padding-top: 24px;
   }
   .intro {
     font-size: 16px;
@@ -1673,26 +1716,26 @@ h1 {
     gap: 32px;
   }
   .lessonCard {
-    padding: 28px;
+    padding: 24px;
   }
   .stageArea {
-    gap: 20px;
+    gap: 18px;
   }
   .phoneColumn {
     padding: 0;
   }
   .appGroup,
   .googleGroup {
-    padding: 15px;
+    padding: 12px;
   }
   .appNodes {
-    gap: 12px;
+    gap: 10px;
   }
   .nodeButton {
-    padding: 12px 10px 0;
+    padding: 10px 9px 0;
   }
   .receiptSlot {
-    padding-left: 10px;
+    padding-left: 9px;
   }
   .googleNodeHeading strong {
     font-size: 12px;
@@ -1737,11 +1780,15 @@ h1 {
     display: none;
   }
   .lessonCard {
-    padding: 26px;
+    padding: 22px;
   }
   .stageArea {
+    --stage-h: 466px;
     grid-template-columns: 1fr;
-    gap: 24px;
+    gap: 20px;
+  }
+  .systemBoxes {
+    min-height: 0;
   }
   .areaLabel {
     font-size: 13px;
@@ -1752,9 +1799,7 @@ h1 {
     font-size: 12px;
   }
   .phone {
-    min-height: 510px;
-    height: 510px;
-    max-width: 285px;
+    max-width: 268px;
   }
   .phoneContent {
     padding-top: 20px;
@@ -1763,23 +1808,23 @@ h1 {
     margin-top: 16px;
   }
   .systemBoxes {
-    gap: 18px;
+    gap: 14px;
   }
   .appGroup,
   .googleGroup {
-    padding: 20px;
+    padding: 16px;
   }
   .appNodes {
-    gap: 20px;
+    gap: 16px;
   }
   .nodeButton {
-    padding: 15px 15px 0;
+    padding: 13px 13px 0;
   }
   .receiptSlot {
-    padding-left: 15px;
+    padding-left: 13px;
   }
   .googleNode .nodeButton {
-    padding: 16px;
+    padding: 14px;
   }
   .nodeHeading strong,
   .googleNodeHeading strong {
@@ -1803,10 +1848,6 @@ h1 {
   .googleState {
     font-size: 12px;
   }
-  .systemFootnote {
-    font-size: 12px;
-    margin-top: 16px;
-  }
   .systemCaption {
     font-size: 12px;
     margin-top: 12px;
@@ -1828,7 +1869,7 @@ h1 {
     margin-bottom: 16px;
   }
   .inspector {
-    margin-top: 20px;
+    margin-top: 16px;
   }
   .pageFooter {
     font-size: 12px;
@@ -1882,7 +1923,7 @@ h1 {
   }
   .lessonCard {
     border-radius: 18px;
-    padding: 21px 15px 17px;
+    padding: 18px 13px 15px;
   }
   .lessonHeading {
     position: relative;
@@ -1943,7 +1984,7 @@ h1 {
     display: none;
   }
   .experiment {
-    padding: 15px 10px;
+    padding: 13px 9px;
     border-radius: 12px;
   }
   .areaLabel {
@@ -1954,15 +1995,14 @@ h1 {
     letter-spacing: 0.8px;
   }
   .stageArea {
-    gap: 21px;
+    --stage-h: 456px;
+    gap: 18px;
   }
   .phone {
-    min-height: 500px;
-    height: 500px;
-    max-width: 270px;
+    max-width: 252px;
   }
   .phoneContent {
-    padding: 20px 18px 7px;
+    padding: 17px 15px 6px;
   }
   .phoneContent h2 {
     font-size: 22px;
@@ -2063,9 +2103,6 @@ h1 {
   .googleServices svg {
     width: 14px;
   }
-  .systemFootnote {
-    font-size: 12px;
-  }
   .exchangeLane {
     height: 51px;
   }
@@ -2103,11 +2140,11 @@ h1 {
     font-size: 12px;
   }
   .playback {
-    min-height: 78px;
-    padding: 10px var(--side, 16px);
+    min-height: 70px;
+    padding: 9px var(--side, 16px);
   }
   .playbackInner {
-    min-height: 58px;
+    min-height: 48px;
     gap: 9px;
   }
   .playbackStatus > span {

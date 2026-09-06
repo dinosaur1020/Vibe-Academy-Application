@@ -85,7 +85,9 @@ const ends = async () =>
   await act(async () => {
     fireEvent(narrator(), new Event('ended'));
   });
-const clock = () => document.querySelector('time')?.textContent ?? '';
+// The dock renders position and total as separate <time> nodes flanking the track.
+const clock = () =>
+  [...document.querySelectorAll('time')].map((t) => t.textContent).join(' / ');
 
 describe('音訊驅動', () => {
   it('旁白播完才前進，計時器不再推動流程', async () => {

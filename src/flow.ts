@@ -400,6 +400,10 @@ export function captionFor(view: Snapshot): string {
 export function isGate(stage: number): boolean {
   return !steps[stage].duration;
 }
+/** True while the demo is parked waiting for the viewer to press something. */
+export function isWaiting(state: FlowState): boolean {
+  return isGate(state.stage) && state.review === null && !state.inspector;
+}
 function nextStage(state: FlowState): number {
   return state.stage === 14 && state.member ? 16 : state.stage + 1;
 }
