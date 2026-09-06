@@ -24,6 +24,8 @@ import {
   MousePointer2,
   Pause,
   Play,
+  Volume2,
+  VolumeX,
   RotateCcw,
   Search,
   Server,
@@ -32,9 +34,11 @@ import {
   Sparkles,
   Wifi,
   X,
+  UserRound,
 } from 'lucide-react';
 import {
   captionFor,
+  isGate,
   sceneNames,
   steps,
   viewOf,
@@ -44,7 +48,8 @@ import {
   type NodeId,
   type Snapshot,
 } from './flow';
-import { useFlow } from './useFlow';
+import { useFlow, type Playback } from './useFlow';
+import { rates } from './useNarration';
 import s from './AuthDemo.module.css';
 
 const packetNames = {
@@ -304,194 +309,199 @@ function SystemMap({
         <span className={s.purpleDot} /> 登入背後的世界{' '}
         <span>BEHIND THE SCENES</span>
       </div>
-      <div className={s.systemPanel}>
-        <div className={s.systemTopline}>
-          <span>
-            <span className={s.miniDot} /> SYSTEM VIEW
-          </span>
-          <span className={s.liveBadge}>
-            {stage === 0
-              ? '等待開始'
-              : stage === 17
-                ? '已完成'
-                : paused
-                  ? '已暫停'
-                  : stage === 4
-                    ? '等待帳號確認'
-                    : '流程進行中'}
-          </span>
-        </div>
-        <div className={s.groupHeading}>
-          <span>YOUR APP</span>
-          <span>你的產品</span>
-          <i />
-        </div>
-        <div className={s.appNodes}>
-          <div
-            ref={refs.backend}
-            className={`${s.node} ${s.backendNode} ${active.includes('backend') ? s.activeNode : ''}`}
-          >
-            <button
-              className={s.nodeButton}
-              onClick={() => dispatch({ type: 'INSPECT', target: 'backend' })}
-              aria-label="檢查 Backend 狀態"
-            >
-              <div className={s.nodeHeading}>
-                <Server size={18} />
-                <strong>Backend</strong>
-                <ArrowUpRight size={14} />
-              </div>
-              <span className={s.nodeSubtitle}>你的後端</span>
-              <div className={s.rack} aria-hidden="true">
-                <div>
-                  <i />
-                  <span />
-                  <span />
-                </div>
-                <div>
-                  <i />
-                  <span />
-                  <span />
-                </div>
-              </div>
-              <div className={s.nodeStatus}>
-                <span />
-                {backendStatus}
-              </div>
-            </button>
-            <div className={s.receiptSlot}>
-              {stage >= 8 && (
-                <button
-                  className={s.receipt}
-                  onClick={() =>
-                    dispatch({
-                      type: 'INSPECT',
-                      target: stage >= 11 ? 'token' : 'code',
-                    })
-                  }
-                >
-                  <KeyRound size={12} />
-                  {stage >= 11 ? 'ID Token' : '一次性代碼'}
-                  <ArrowUpRight size={12} />
-                </button>
-              )}
+      <div className={s.systemBoxes}>
+        <section className={s.appGroup} aria-label="你的產品">
+          <div className={s.systemCardHeading}>
+            <div>
+              <span className={s.miniDot} />
+              <strong>YOUR APP</strong>
+              <span>你的產品</span>
             </div>
+            <span className={s.liveBadge}>
+              {stage === 0
+                ? '等待開始'
+                : stage === 17
+                  ? '已完成'
+                  : paused
+                    ? '已暫停'
+                    : '處理中'}
+            </span>
           </div>
-          <div
-            ref={refs.db}
-            className={`${s.node} ${s.databaseNode} ${active.includes('db') ? s.activeNode : ''}`}
-          >
-            <button
-              className={s.nodeButton}
-              onClick={() => dispatch({ type: 'INSPECT', target: 'db' })}
-              aria-label="檢查 Users DB 狀態"
+          <div className={s.appNodes}>
+            <div
+              ref={refs.backend}
+              className={`${s.node} ${s.backendNode} ${active.includes('backend') ? s.activeNode : ''}`}
             >
-              <div className={s.nodeHeading}>
-                <Database size={18} />
-                <strong>Users DB</strong>
-                <ArrowUpRight size={14} />
-              </div>
-              <span className={s.nodeSubtitle}>你的會員資料庫</span>
-              <div className={s.databasePreview}>
-                {member ? (
-                  <>
-                    <span className={s.dbUser}>
-                      <span>D</span>
-                      <strong>
-                        Dino<small>user 42 · Google</small>
-                      </strong>
-                      <Check size={14} />
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <div className={s.tableHeader}>
-                      <span>ID</span>
-                      <span>USER</span>
-                      <span>PROVIDER</span>
-                    </div>
-                    <div className={s.emptyRow}>
-                      <span>—</span>
-                      <span>還沒有會員資料</span>
-                    </div>
-                  </>
+              <button
+                className={s.nodeButton}
+                onClick={() => dispatch({ type: 'INSPECT', target: 'backend' })}
+                aria-label="檢查 Backend 狀態"
+              >
+                <div className={s.nodeHeading}>
+                  <Server size={18} />
+                  <strong>Backend</strong>
+                  <ArrowUpRight size={14} />
+                </div>
+                <span className={s.nodeSubtitle}>你的後端</span>
+                <div className={s.rack} aria-hidden="true">
+                  <div>
+                    <i />
+                    <span />
+                    <span />
+                  </div>
+                  <div>
+                    <i />
+                    <span />
+                    <span />
+                  </div>
+                </div>
+                <div className={s.nodeStatus}>
+                  <span />
+                  {backendStatus}
+                </div>
+              </button>
+              <div className={s.receiptSlot}>
+                {stage >= 8 && (
+                  <button
+                    className={s.receipt}
+                    onClick={() =>
+                      dispatch({
+                        type: 'INSPECT',
+                        target: stage >= 11 ? 'token' : 'code',
+                      })
+                    }
+                  >
+                    <KeyRound size={12} />
+                    {stage >= 11 ? 'ID Token' : '一次性代碼'}
+                    <ArrowUpRight size={12} />
+                  </button>
                 )}
               </div>
-              <div className={s.nodeStatus}>
-                <span />
-                {dbStatus}
+            </div>
+            <div
+              ref={refs.db}
+              className={`${s.node} ${s.databaseNode} ${active.includes('db') ? s.activeNode : ''}`}
+            >
+              <button
+                className={s.nodeButton}
+                onClick={() => dispatch({ type: 'INSPECT', target: 'db' })}
+                aria-label="檢查 Users DB 狀態"
+              >
+                <div className={s.nodeHeading}>
+                  <Database size={18} />
+                  <strong>Users DB</strong>
+                  <ArrowUpRight size={14} />
+                </div>
+                <span className={s.nodeSubtitle}>你的會員資料庫</span>
+                <div className={s.databasePreview}>
+                  {member ? (
+                    <>
+                      <span className={s.dbUser}>
+                        <span>D</span>
+                        <strong>
+                          Dino<small>user 42 · Google</small>
+                        </strong>
+                        <Check size={14} />
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <div className={s.tableHeader}>
+                        <span>ID</span>
+                        <span>USER</span>
+                        <span>PROVIDER</span>
+                      </div>
+                      <div className={s.emptyRow}>
+                        <span>—</span>
+                        <span>還沒有會員資料</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className={s.nodeStatus}>
+                  <span />
+                  {dbStatus}
+                </div>
+              </button>
+              <div className={s.receiptSlot}>
+                {member && (
+                  <span className={s.memberChip}>
+                    <Check size={12} />
+                    user 42
+                  </span>
+                )}
               </div>
-            </button>
-            <div className={s.receiptSlot}>
-              {member && (
-                <span className={s.memberChip}>
-                  <Check size={12} />
-                  user 42
-                </span>
-              )}
             </div>
           </div>
-        </div>
-        <div className={s.exchangeLane}>
-          <span className={s.laneLine} />
-          <span>
+        </section>
+        <section className={s.googleGroup} aria-label="Google Identity">
+          <div className={s.systemCardHeading}>
+            <div>
+              <span className={s.googleHeadingDot} />
+              <strong>GOOGLE IDENTITY</strong>
+              <span>第三方身份提供者</span>
+            </div>
+            <span className={s.liveBadge}>
+              {stage >= 5 ? '身份已確認' : '等待確認'}
+            </span>
+          </div>
+          <div className={s.exchangeHint}>
             <LockKeyhole size={12} />
             {stage >= 9 && stage <= 12
-              ? 'Backend 與 Google 直接溝通'
-              : '不同系統，交換不同資料'}
-          </span>
-          <span className={s.laneLine} />
-        </div>
-        <div
-          ref={refs.google}
-          className={`${s.node} ${s.googleNode} ${active.includes('google') ? s.activeNode : ''}`}
-        >
-          <button
-            className={s.nodeButton}
-            onClick={() => dispatch({ type: 'INSPECT', target: 'google' })}
-            aria-label="檢查 Google 狀態"
+              ? 'Backend 正在直接與 Google 溝通'
+              : 'Google 只負責確認身份'}
+          </div>
+          <div
+            ref={refs.google}
+            className={`${s.googleNode} ${active.includes('google') ? s.activeNode : ''}`}
           >
-            <div className={s.googleNodeHeading}>
-              <span className={s.googleIcon}>
-                <GoogleMark />
-              </span>
-              <div>
-                <strong>Google Identity</strong>
-                <span>第三方身份提供者</span>
+            <button
+              className={s.nodeButton}
+              onClick={() => dispatch({ type: 'INSPECT', target: 'google' })}
+              aria-label="檢查 Google 狀態"
+            >
+              <div className={s.googleNodeHeading}>
+                <span className={s.googleIcon}>
+                  <GoogleMark />
+                </span>
+                <div>
+                  <strong>Google Identity</strong>
+                  <span>第三方身份提供者</span>
+                </div>
+                <span className={s.googleState}>
+                  {stage >= 5 ? (
+                    <>
+                      <Check size={12} />
+                      身份已確認
+                    </>
+                  ) : (
+                    '等待確認'
+                  )}
+                </span>
               </div>
-              <span className={s.googleState}>
-                {stage >= 5 ? (
-                  <>
-                    <Check size={12} />
-                    身份已確認
-                  </>
-                ) : (
-                  '等待確認'
-                )}
-              </span>
-            </div>
-            <div className={s.googleServices}>
-              <span>
-                <Fingerprint size={17} />
+              <div className={s.googleServices}>
                 <span>
-                  帳號確認<small>Authentication</small>
+                  <Fingerprint size={17} />
+                  <span>
+                    帳號確認<small>Authentication</small>
+                  </span>
+                  {stage >= 5 && <Check size={14} />}
                 </span>
-                {stage >= 5 && <Check size={14} />}
-              </span>
-              <span>
-                <ShieldCheck size={17} />
                 <span>
-                  身分憑證<small>Identity Service</small>
+                  <ShieldCheck size={17} />
+                  <span>
+                    身分憑證<small>Identity Service</small>
+                  </span>
+                  {stage >= 11 && <Check size={14} />}
                 </span>
-                {stage >= 11 && <Check size={14} />}
-              </span>
-            </div>
-          </button>
-        </div>
-        <div className={s.systemFootnote}>
-          <LockKeyhole size={12} />
-          Google 密碼不會交給你的 App
-        </div>
+              </div>
+            </button>
+          </div>
+          <div className={s.systemFootnote}>
+            <LockKeyhole size={12} />
+            Google 密碼不會交給你的 App
+          </div>
+        </section>
       </div>
       <div className={s.systemCaption}>
         <MousePointer2 size={13} />
@@ -507,12 +517,14 @@ function DataFlow({
   area,
   dispatch,
   reviewing,
+  flight,
 }: {
   view: Snapshot;
   refs: Record<NodeId, RefObject<HTMLDivElement | null>>;
   area: RefObject<HTMLDivElement | null>;
   dispatch: Dispatch<Action>;
   reviewing: boolean;
+  flight: number;
 }) {
   const markerId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const [geometry, setGeometry] = useState({ width: 1, height: 1, path: '' });
@@ -569,15 +581,11 @@ function DataFlow({
     if (path && typeof path.getTotalLength === 'function') {
       const p = path.getPointAtLength(
         path.getTotalLength() *
-          (reviewing
-            ? 1
-            : reduced
-              ? 0.5
-              : Math.min(1, view.elapsed / step.duration)),
+          (reviewing ? 1 : reduced ? 0.5 : Math.min(1, view.elapsed / flight)),
       );
       setPoint({ x: p.x, y: p.y });
     }
-  }, [geometry.path, view.elapsed, reduced, step.duration, reviewing]);
+  }, [geometry.path, view.elapsed, reduced, flight, reviewing]);
   if (!step.route || !geometry.path) return null;
   return (
     <div className={s.flowOverlay}>
@@ -836,67 +844,151 @@ function Inspector({
   );
 }
 
+function formatTime(ms: number) {
+  const total = Math.max(0, Math.round(ms / 1000));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+}
+
 function PlaybackControls({
   state,
-  view,
   dispatch,
+  playback,
 }: {
   state: FlowState;
-  view: Snapshot;
   dispatch: Dispatch<Action>;
+  playback: Playback;
 }) {
+  const { narration, position, total, unlocked, seekTo, driving } = playback;
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [scrubbing, setScrubbing] = useState(false);
   const review = state.review !== null;
-  const disabled = !steps[state.stage].duration || review || !!state.inspector;
+  const waiting = isGate(state.stage) && !review && !state.inspector;
+  const paused = state.paused || narration.blocked;
+  const canSeek = driving && !review && !state.inspector;
   const label = review
     ? '正在回看紀錄'
     : state.inspector
       ? '已暫停，正在檢查資料'
-      : state.stage === 0
-        ? '等待你開始登入'
-        : state.stage === 4
-          ? '等待你確認 Google 帳號'
-          : state.stage === 17
-            ? '這次登入已完成'
-            : state.paused
-              ? '已暫停 · 按播放繼續'
-              : [5, 8].includes(state.stage)
-                ? '停留 2 秒，觀察這個時刻'
-                : '系統自動運作中';
+      : narration.blocked
+        ? '按播放，開始語音解說'
+        : state.stage === 0
+          ? '等待你開始登入'
+          : state.stage === 4
+            ? '等待你確認 Google 帳號'
+            : state.stage === 17
+              ? '這次登入已完成'
+              : state.paused
+                ? '已暫停 · 按播放繼續'
+                : '解說進行中';
+
+  const scrubTo = (clientX: number) => {
+    const track = trackRef.current;
+    if (!track || !total) return;
+    const box = track.getBoundingClientRect();
+    seekTo(((clientX - box.left) / box.width) * total);
+  };
+  const nudge = (delta: number) => seekTo(position + delta);
+
   return (
     <div className={s.playback}>
-      <button
-        className={s.playButton}
-        disabled={disabled}
-        aria-label={state.paused ? '繼續播放' : '暫停流程'}
-        onClick={() => dispatch({ type: state.paused ? 'PLAY' : 'PAUSE' })}
-      >
-        {state.paused || disabled ? (
-          <Play size={17} fill="currentColor" />
-        ) : (
-          <Pause size={17} fill="currentColor" />
-        )}
-      </button>
-      <div className={s.playbackStatus}>
-        <span>{label}</span>
-        <div className={s.progressTrack}>
-          <span
-            style={{
-              width: `${((view.stage + (steps[view.stage].duration ? view.elapsed / steps[view.stage].duration : 0)) / 17) * 100}%`,
-            }}
-          />
-        </div>
-      </div>
-      {review ? (
-        <button
-          className={s.returnLive}
-          onClick={() => dispatch({ type: 'LIVE' })}
+      <div className={s.playbackInner}>
+        <span
+          className={s.dockAvatar}
+          data-speaking={narration.speaking}
+          aria-hidden="true"
         >
-          回到目前進度
-          <ArrowRight size={14} />
+          D
+        </span>
+        <button
+          className={s.playButton}
+          disabled={review || !!state.inspector}
+          aria-label={paused ? '繼續播放' : '暫停流程'}
+          onClick={() => {
+            if (state.paused) dispatch({ type: 'PLAY' });
+            else if (narration.blocked) narration.resume();
+            else dispatch({ type: 'PAUSE' });
+          }}
+        >
+          {paused ? (
+            <Play size={17} fill="currentColor" />
+          ) : (
+            <Pause size={17} fill="currentColor" />
+          )}
         </button>
-      ) : (
-        <span className={s.playbackHint}>可隨時暫停與檢查</span>
-      )}
+        <div className={s.playbackStatus}>
+          <div className={s.playbackLabel}>
+            <span>{label}</span>
+            <time className={s.clock}>
+              {formatTime(position)} / {formatTime(total)}
+            </time>
+          </div>
+          <div
+            ref={trackRef}
+            className={`${s.progressTrack} ${canSeek ? s.seekable : ''}`}
+            role="slider"
+            tabIndex={canSeek ? 0 : -1}
+            aria-label="解說進度"
+            aria-valuemin={0}
+            aria-valuemax={Math.round(total / 1000)}
+            aria-valuenow={Math.round(position / 1000)}
+            aria-valuetext={`${formatTime(position)} / ${formatTime(total)}`}
+            onPointerDown={(event) => {
+              if (!canSeek) return;
+              event.currentTarget.setPointerCapture(event.pointerId);
+              setScrubbing(true);
+              scrubTo(event.clientX);
+            }}
+            onPointerMove={(event) => scrubbing && scrubTo(event.clientX)}
+            onPointerUp={() => setScrubbing(false)}
+            onPointerCancel={() => setScrubbing(false)}
+            onKeyDown={(event) => {
+              if (!canSeek) return;
+              if (event.key === 'ArrowLeft') nudge(-5000);
+              else if (event.key === 'ArrowRight') nudge(5000);
+              else if (event.key === 'Home') seekTo(0);
+              else return;
+              event.preventDefault();
+            }}
+          >
+            <span
+              className={s.progressHeard}
+              style={{ width: `${total ? (unlocked / total) * 100 : 0}%` }}
+            />
+            <span
+              className={s.progressFill}
+              style={{ width: `${total ? (position / total) * 100 : 0}%` }}
+            />
+          </div>
+        </div>
+        {waiting && <span className={s.waitingChip}>等你操作</span>}
+        <button
+          className={s.rateButton}
+          aria-label="播放速度"
+          onClick={() =>
+            narration.setRate(
+              rates[(rates.indexOf(narration.rate) + 1) % rates.length],
+            )
+          }
+        >
+          {narration.rate.toFixed(narration.rate % 1 ? 2 : 1)}×
+        </button>
+        <button
+          className={s.muteButton}
+          aria-label={narration.muted ? '取消靜音' : '靜音'}
+          onClick={narration.toggleMuted}
+        >
+          {narration.muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+        </button>
+        {review && (
+          <button
+            className={s.returnLive}
+            onClick={() => dispatch({ type: 'LIVE' })}
+          >
+            回到目前進度
+            <ArrowRight size={14} />
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -958,7 +1050,7 @@ function AuthLog({
 }
 
 export function AuthDemo() {
-  const { state, dispatch } = useFlow();
+  const { state, dispatch, playback } = useFlow();
   const view = viewOf(state);
   const area = useRef<HTMLDivElement>(null);
   const browser = useRef<HTMLDivElement>(null),
@@ -983,6 +1075,22 @@ export function AuthDemo() {
         </span>
       </header>
       <main className={s.page}>
+        <aside className={s.avatarRail} aria-label="課程講解者">
+          <div
+            className={s.avatarCircle}
+            data-speaking={playback.narration.speaking}
+          >
+            <span>D</span>
+            <UserRound size={36} />
+            <i className={s.speaking} aria-hidden="true" />
+          </div>
+          <strong>Dino</strong>
+          <span className={s.avatarRole}>課程講解</span>
+          <button className={s.followButton}>
+            <Sparkles size={14} />
+            跟隨解說
+          </button>
+        </aside>
         <div className={s.breadcrumb}>
           <span>後端的核心概念</span>
           <ChevronRight size={12} />
@@ -1065,6 +1173,7 @@ export function AuthDemo() {
               />
               <DataFlow
                 reviewing={state.review !== null}
+                flight={playback.flight}
                 view={view}
                 refs={refs}
                 area={area}
@@ -1073,7 +1182,11 @@ export function AuthDemo() {
             </div>
             <Inspector state={state} view={view} dispatch={dispatch} />
           </div>
-          <PlaybackControls state={state} view={view} dispatch={dispatch} />
+          <PlaybackControls
+            state={state}
+            dispatch={dispatch}
+            playback={playback}
+          />
           <AuthLog state={state} dispatch={dispatch} />
         </article>
         <footer className={s.pageFooter}>

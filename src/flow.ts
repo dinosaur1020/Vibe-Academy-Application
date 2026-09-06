@@ -1,3 +1,4 @@
+import { narration, type NarrationClip } from './narration/manifest';
 export type NodeId = 'browser' | 'backend' | 'google' | 'db';
 export type InspectId = NodeId | 'request' | 'code' | 'token';
 export interface Step {
@@ -210,6 +211,8 @@ export interface LogEntry {
 }
 export interface FlowState extends Snapshot {
   paused: boolean;
+  /** Set while the cancel narration plays, so stage 0 uses its own cue. */
+  justCancelled: boolean;
   inspector: InspectId | null;
   review: number | null;
   logs: LogEntry[];
@@ -228,6 +231,9 @@ export type Action =
         | 'RESET';
     }
   | { type: 'TICK'; delta: number; run: number; stage: number }
+  | { type: 'CLOCK'; elapsed: number; run: number; stage: number }
+  | { type: 'ADVANCE'; run: number; stage: number }
+  | { type: 'SEEK'; stage: number; offset: number }
   | { type: 'INSPECT'; target: InspectId }
   | { type: 'REVIEW'; index: number };
 export function initialState(run = 0): FlowState {
@@ -238,6 +244,7 @@ export function initialState(run = 0): FlowState {
     run,
     elapsed: 0,
     paused: false,
+    justCancelled: false,
     inspector: null,
     review: null,
     logs: [],
@@ -275,7 +282,15 @@ export function reducer(state: FlowState, action: Action): FlowState {
   switch (action.type) {
     case 'START':
       return state.stage === 0 && state.review === null && !state.inspector
-        ? enter({ ...state, run: state.run + 1, paused: false }, 1)
+        ? enter(
+            {
+              ...state,
+              run: state.run + 1,
+              paused: false,
+              justCancelled: false,
+            },
+            1,
+          )
         : state;
     case 'CONTINUE':
       return state.stage === 4 && state.review === null && !state.inspector
@@ -288,6 +303,7 @@ export function reducer(state: FlowState, action: Action): FlowState {
             stage: 0,
             elapsed: 0,
             paused: false,
+            justCancelled: true,
             inspector: null,
             logs: [
               ...state.logs,
@@ -318,10 +334,26 @@ export function reducer(state: FlowState, action: Action): FlowState {
         return state;
       const elapsed = state.elapsed + Math.max(0, action.delta);
       if (elapsed < steps[state.stage].duration) return { ...state, elapsed };
-      return enter(
-        state,
-        state.stage === 14 && state.member ? 16 : state.stage + 1,
-      );
+      return enter(state, nextStage(state));
+    }
+    case 'CLOCK':
+      return action.run !== state.run ||
+        action.stage !== state.stage ||
+        state.paused ||
+        state.inspector ||
+        state.review !== null
+        ? state
+        : { ...state, elapsed: action.elapsed };
+    case 'ADVANCE':
+      return action.run !== state.run ||
+        action.stage !== state.stage ||
+        state.review !== null ||
+        isGate(state.stage)
+        ? state
+        : enter(state, nextStage(state));
+    case 'SEEK': {
+      const target = stateAtStage(state, action.stage);
+      return { ...target, elapsed: action.offset, paused: state.paused };
     }
     case 'PAUSE':
       return { ...state, paused: true };
@@ -362,4 +394,115 @@ export function captionFor(view: Snapshot): string {
   if (view.stage === 17 && view.returning)
     return '同一個 Google 身份已經有會員資料，這次直接登入，不需要再建立帳號。';
   return steps[view.stage].caption;
+}
+
+/** Stages that hold until the viewer acts; their narration waits with them. */
+export function isGate(stage: number): boolean {
+  return !steps[stage].duration;
+}
+function nextStage(state: FlowState): number {
+  return state.stage === 14 && state.member ? 16 : state.stage + 1;
+}
+
+export type CueId =
+  | 'intro'
+  | 'intro-again'
+  | 'cancel'
+  | 's1'
+  | 's2'
+  | 's3'
+  | 's4'
+  | 's5'
+  | 's6'
+  | 's7'
+  | 's8'
+  | 's9'
+  | 's10'
+  | 's11'
+  | 's12'
+  | 's13'
+  | 's14-new'
+  | 's14-found'
+  | 's15'
+  | 's16'
+  | 's17-first'
+  | 's17-return';
+
+/** Narration cue for the live state. Branches exactly like captionFor(). */
+export function cueFor(state: FlowState): CueId {
+  const { stage, member, returning } = state;
+  if (stage === 0)
+    return state.justCancelled ? 'cancel' : returning ? 'intro-again' : 'intro';
+  if (stage === 14) return member ? 's14-found' : 's14-new';
+  if (stage === 17) return returning ? 's17-return' : 's17-first';
+  return `s${stage}` as CueId;
+}
+export function clipOf(cue: CueId | undefined): NarrationClip | undefined {
+  return cue ? narration[cue] : undefined;
+}
+export function clipFor(state: FlowState): NarrationClip | undefined {
+  return clipOf(cueFor(state));
+}
+
+export interface Segment {
+  stage: number;
+  cue: CueId;
+  start: number;
+  ms: number;
+}
+/** Stage order for one run: a returning member skips the create-account step. */
+export function stagesFor(returning: boolean): number[] {
+  const stages = [];
+  for (let stage = 0; stage <= 17; stage++)
+    if (!(returning && stage === 15)) stages.push(stage);
+  return stages;
+}
+/**
+ * Play order with cumulative offsets, so the dock can show one continuous
+ * timeline even though every step is its own clip.
+ */
+export function timelineFor(returning: boolean): Segment[] {
+  const segments: Segment[] = [];
+  let start = 0;
+  for (const stage of stagesFor(returning)) {
+    const cue = cueFor({
+      ...initialState(),
+      stage,
+      member: returning,
+      returning,
+    });
+    const ms = narration[cue]?.ms ?? steps[stage].duration;
+    segments.push({ stage, cue, start, ms });
+    start += ms;
+  }
+  return segments;
+}
+export function totalMs(timeline: Segment[]): number {
+  const last = timeline[timeline.length - 1];
+  return last ? last.start + last.ms : 0;
+}
+
+/**
+ * Rebuilds the run at an arbitrary stage by replaying enter() along the
+ * deterministic path, so seeking produces exactly the logs live playback would.
+ */
+export function stateAtStage(base: FlowState, target: number): FlowState {
+  let state: FlowState = {
+    ...initialState(base.run),
+    member: base.returning,
+    returning: base.returning,
+  };
+  while (state.stage !== target && state.stage < 17)
+    state = enter(state, nextStage(state));
+  return { ...state, paused: base.paused, inspector: null, review: null };
+}
+
+/**
+ * How long the packet takes to cross. Short clips keep the original snap;
+ * long ones stretch the flight so it reads as part of the sentence, then rest.
+ */
+export function flightMs(stage: number, clipMs: number | undefined): number {
+  const motion = steps[stage].duration || 700;
+  if (!clipMs) return motion;
+  return Math.min(Math.max(motion, clipMs * 0.6), 2600);
 }

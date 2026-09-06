@@ -10,7 +10,9 @@
     "test": "vitest run",
     "typecheck": "tsc -b",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "narration": "node scripts/generate-narration.mjs",
+    "narration:check": "node scripts/generate-narration.mjs --check"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
