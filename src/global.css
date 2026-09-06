@@ -1,0 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800;900&display=swap');
+:root {
+  font-family:
+    'Noto Sans TC',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  color: #262828;
+  background: #f8f7f5;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  font-weight: 400;
+  --ink: #252829;
+  --muted: #687386;
+  --purple: #8661db;
+  --blue: #4987ef;
+  --green: #31d1a0;
+  --navy: #0e1728;
+  --line: #eae9e7;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 320px;
+}
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+}
+button {
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+button:disabled {
+  cursor: default;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid #598eff;
+  outline-offset: 4px;
+}
+button:disabled {
+  opacity: 0.5;
+}
+a {
+  color: inherit;
+}
+svg {
+  flex-shrink: 0;
+}
+button {
+  color: inherit;
+}
+::selection {
+  background: #e5dcfc;
+}
+button:hover:not(:disabled) {
+  filter: brightness(1.035);
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
