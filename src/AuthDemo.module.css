@@ -378,8 +378,10 @@ h1 {
 }
 .stageArea {
   /* Both columns hang off one height so the phone and the last system
-     card end on the same line. */
+     card end on the same line; only the phone side still carries a label,
+     so the system side reserves the same space to stay level with it. */
   --stage-h: 450px;
+  --label-h: 34px;
   position: relative;
   display: grid;
   grid-template-columns: 36% 1fr;
@@ -415,6 +417,9 @@ h1 {
 }
 .phoneColumn {
   padding: 0 6px;
+}
+.systemColumn {
+  padding-top: var(--label-h);
 }
 .phone {
   width: 100%;
@@ -1005,6 +1010,11 @@ h1 {
   margin-top: 14px;
   height: 18px;
 }
+.systemCaption strong {
+  color: #596475;
+  font-weight: 600;
+  margin-right: 5px;
+}
 .flowOverlay {
   position: absolute;
   inset: 0;
@@ -1269,6 +1279,8 @@ h1 {
 }
 .logSection {
   margin-top: 16px;
+  /* Clears the fixed playback dock when scrolled into view. */
+  scroll-margin-bottom: 96px;
 }
 .logHeading,
 .logHeading > div {
@@ -1792,6 +1804,7 @@ h1 {
   }
   .stageArea {
     --stage-h: 466px;
+    --label-h: 0px;
     grid-template-columns: 1fr;
     gap: 20px;
   }

@@ -309,10 +309,6 @@ function SystemMap({
             : '尚未查詢';
   return (
     <div className={s.systemColumn}>
-      <div className={s.areaLabel}>
-        <span className={s.purpleDot} /> 登入背後的世界{' '}
-        <span>BEHIND THE SCENES</span>
-      </div>
       <div className={s.systemBoxes}>
         <section className={s.appGroup} aria-label="你的產品">
           <div className={s.systemCardHeading}>
@@ -504,6 +500,8 @@ function SystemMap({
         </section>
       </div>
       <div className={s.systemCaption}>
+        <span className={s.purpleDot} />
+        <strong>登入背後的世界</strong>
         <MousePointer2 size={13} />
         點擊系統或資料標籤，停下來看看
       </div>
@@ -768,7 +766,7 @@ function Inspector({
   useEffect(() => {
     if (!state.inspector) return;
     const opener = document.activeElement as HTMLElement | null;
-    inspectorRef.current?.focus();
+    inspectorRef.current?.focus({ preventScroll: true });
     return () => {
       if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
@@ -990,9 +988,11 @@ function PlaybackControls({
 function AuthLog({
   state,
   dispatch,
+  sectionRef,
 }: {
   state: FlowState;
   dispatch: Dispatch<Action>;
+  sectionRef: RefObject<HTMLElement | null>;
 }) {
   const listRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -1000,7 +1000,11 @@ function AuthLog({
       listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [state.logs.length]);
   return (
-    <section className={s.logSection} aria-label="系統執行紀錄">
+    <section
+      ref={sectionRef}
+      className={s.logSection}
+      aria-label="系統執行紀錄"
+    >
       <div className={s.logHeading}>
         <div>
           <Code2 size={16} />
@@ -1053,8 +1057,19 @@ export function AuthDemo() {
     db = useRef<HTMLDivElement>(null);
   const [refs] = useState(() => ({ browser, backend, google, db }));
   const card = useRef<HTMLElement>(null);
+  const log = useRef<HTMLElement>(null);
   const waiting = isWaiting(state);
   const lessonMinutes = Math.max(1, Math.round(playback.total / 60000));
+  // Inspecting something is only useful if the log it feeds is on screen.
+  useEffect(() => {
+    if (!state.inspector) return;
+    log.current?.scrollIntoView?.({
+      behavior: matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? 'auto'
+        : 'smooth',
+      block: 'nearest',
+    });
+  }, [state.inspector]);
   return (
     <>
       <header className={s.siteHeader}>
@@ -1198,7 +1213,7 @@ export function AuthDemo() {
             dispatch={dispatch}
             playback={playback}
           />
-          <AuthLog state={state} dispatch={dispatch} />
+          <AuthLog state={state} dispatch={dispatch} sectionRef={log} />
         </article>
         <footer className={s.pageFooter}>
           <span>
