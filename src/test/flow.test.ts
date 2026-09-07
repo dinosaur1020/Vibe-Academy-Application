@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  anchorNode,
   initialState,
   isWaiting,
   reducer,
@@ -92,6 +93,18 @@ describe('Google 登入教學狀態機', () => {
     const started = reducer(waitingAtGate, { type: 'START' });
     expect(started.audio).toBe(1);
     expect(started.held).toBe(false);
+  });
+  it('每條箭頭都指向確切的元件，而且都有可以退回的卡片', () => {
+    const anchors = Object.keys(anchorNode);
+    for (const [stage, step] of steps.entries())
+      for (const id of step.route ?? [])
+        expect(anchors, `stage ${stage}`).toContain(id);
+    // The browser asks, the backend answers with somewhere to go, and only
+    // then does the browser leave for Google. Without the middle leg the jump
+    // to Google looks like it came from nowhere.
+    expect(steps[1].route).toEqual(['browser.action', 'backend']);
+    expect(steps[2].route).toEqual(['backend', 'browser.action']);
+    expect(steps[3].route).toEqual(['browser.action', 'google.auth']);
   });
   it('取消不建立會員或取得憑證，保留取消紀錄並可重試', () => {
     const state = reducer(runUntil(start(), 4), { type: 'CANCEL' });

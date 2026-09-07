@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useId,
   useLayoutEffect,
@@ -37,10 +38,12 @@ import {
   UserRound,
 } from 'lucide-react';
 import {
+  anchorNode,
   captionFor,
   sceneNames,
   steps,
   type Action,
+  type AnchorId,
   type FlowState,
   type InspectId,
   type NodeId,
@@ -50,11 +53,49 @@ import { useFlow, type Playback } from './useFlow';
 import { rates } from './useNarration';
 import s from './AuthDemo.module.css';
 
+/** The one-time code this run is carrying, shown wherever it actually is. */
+const demoCode = (run: number) => `DEMO-CODE-${String(run).padStart(3, '0')}`;
+
 const packetNames = {
   request: '登入請求',
   code: '一次性代碼',
   token: 'ID Token',
 };
+
+type Anchor = (el: HTMLElement | null) => void;
+
+/**
+ * Arrows point at the thing being talked about, not at the card containing it,
+ * so every element that can be one end of a leg registers itself here. The ref
+ * callbacks are cached per id: a fresh one each render would make React detach
+ * and reattach the element, and remeasuring forever.
+ */
+function useAnchors() {
+  const elements = useRef(new Map<AnchorId, HTMLElement>());
+  const callbacks = useRef(new Map<AnchorId, Anchor>());
+  const [version, bump] = useState(0);
+  const anchor = useCallback((id: AnchorId): Anchor => {
+    let cached = callbacks.current.get(id);
+    if (!cached) {
+      cached = (el) => {
+        if (el) elements.current.set(id, el);
+        else elements.current.delete(id);
+        bump((n) => n + 1);
+      };
+      callbacks.current.set(id, cached);
+    }
+    return cached;
+  }, []);
+  return { elements, anchor, version };
+}
+
+/**
+ * Reveals a line once the narration has reached the part of the sentence that
+ * mentions it, so a step with nothing moving still has something happening.
+ */
+function beat(progress: number, at: number): string {
+  return `${s.beat}${progress >= at ? ` ${s.beatOn}` : ''}`;
+}
 
 export function GoogleMark({ className = '' }: { className?: string }) {
   return (
@@ -85,23 +126,45 @@ export function GoogleMark({ className = '' }: { className?: string }) {
   );
 }
 
+/** What the login screen says while the request it started is still in flight. */
+const sendingHints = [
+  '點一下，看看背後發生什麼',
+  '登入請求已送到你的後端',
+  '後端把登入網址交回瀏覽器',
+  '即將前往 accounts.google.com',
+];
+
 function PhonePreview({
   view,
   dispatch,
   locked,
   waiting,
+  progress,
+  landed,
+  anchor,
   nodeRef,
 }: {
   view: Snapshot;
   dispatch: Dispatch<Action>;
   locked: boolean;
   waiting: boolean;
+  progress: number;
+  landed: boolean;
+  anchor: (id: AnchorId) => Anchor;
   nodeRef: RefObject<HTMLDivElement | null>;
 }) {
   const cta = waiting ? ` ${s.cta}` : '';
   const consent = view.stage === 4;
-  const ready = view.stage === 0;
+  // The button stays put while the request it sent is still travelling, so the
+  // arrow really does leave the thing you pressed and come back to it.
+  const ready = view.stage <= 3;
+  const sending = view.stage > 0 && view.stage <= 3;
   const done = view.stage === 17;
+  // s6 happens in two halves. First the browser is simply sent back — no
+  // packet, no arrow, just the address turning into your own. Only then does
+  // the sentence reach the code, and only then does anything travel.
+  const onOwnSite = view.stage > 6 || (view.stage === 6 && progress >= 0.4);
+  const hasCode = view.stage > 6 || (view.stage === 6 && landed);
   return (
     <div className={s.phoneColumn}>
       <div className={s.areaLabel}>
@@ -117,11 +180,18 @@ function PhonePreview({
               <i className={s.battery} />
             </span>
           </div>
-          <div className={s.addressBar}>
+          <div className={s.addressBar} data-returning={view.stage === 6}>
             <LockKeyhole size={11} />
-            {view.stage >= 4 && view.stage <= 6
-              ? 'accounts.google.com'
-              : 'my-app.example'}
+            {view.stage >= 4 && !onOwnSite ? (
+              'accounts.google.com'
+            ) : hasCode && view.stage <= 7 ? (
+              <>
+                my-app.example/?code=
+                <b>{demoCode(view.run)}</b>
+              </>
+            ) : (
+              'my-app.example'
+            )}
             <span>模擬</span>
           </div>
           <div className={s.phoneContent}>
@@ -157,6 +227,7 @@ function PhonePreview({
                   </button>
                   <button
                     className={cta.trim()}
+                    ref={anchor('browser.action')}
                     disabled={locked}
                     onClick={() => dispatch({ type: 'CONTINUE' })}
                   >
@@ -177,18 +248,35 @@ function PhonePreview({
                 <p>用熟悉的帳號，輕鬆登入。</p>
                 <button
                   className={`${s.googleButton}${cta}`}
-                  disabled={locked}
+                  ref={anchor('browser.action')}
+                  data-sending={sending}
+                  disabled={locked || sending}
                   onClick={() => dispatch({ type: 'START' })}
                 >
-                  <GoogleMark />
-                  <span>Continue with Google</span>
+                  {sending ? (
+                    <i className={s.buttonSpinner} aria-hidden="true" />
+                  ) : (
+                    <GoogleMark />
+                  )}
+                  <span>
+                    {view.stage === 3
+                      ? '正在前往 Google…'
+                      : sending
+                        ? '正在為你登入…'
+                        : 'Continue with Google'}
+                  </span>
                 </button>
                 <div className={s.noPassword}>
-                  <LockKeyhole size={12} /> 不用另外設定密碼
+                  <LockKeyhole size={12} />
+                  {sending ? '你的密碼不會經過這裡' : '不用另外設定密碼'}
                 </div>
                 <div className={s.startHint}>
-                  <MousePointer2 size={15} />
-                  <span>點一下，看看背後發生什麼</span>
+                  {sending ? (
+                    <Sparkles size={15} />
+                  ) : (
+                    <MousePointer2 size={15} />
+                  )}
+                  <span>{sendingHints[view.stage]}</span>
                 </div>
               </>
             ) : done ? (
@@ -203,7 +291,7 @@ function PhonePreview({
                   Welcome, Dino <span className={s.wave}>👋</span>
                 </h2>
                 <p>dino@example.com</p>
-                <div className={s.signedIn}>
+                <div className={s.signedIn} ref={anchor('browser.screen')}>
                   <CheckCheck size={16} /> 已登入 My App <span>user 42</span>
                 </div>
                 {/* An exit, not a call to action: no pulse, no spotlight. It is
@@ -229,15 +317,65 @@ function PhonePreview({
                 <h2 className={s.processingTitle}>
                   {view.stage === 5
                     ? 'Google 已確認身份'
-                    : view.stage >= 6 && view.stage <= 8
+                    : view.stage === 6 && !onOwnSite
                       ? '正在返回 My App…'
-                      : '正在為你登入…'}
+                      : view.stage >= 6 && view.stage <= 8
+                        ? '已回到 My App'
+                        : '正在為你登入…'}
                 </h2>
-                <p>
-                  {view.stage === 5
-                    ? '接下來，回到你的 App。'
-                    : '背後的系統正在合作。'}
-                </p>
+                {view.stage === 5 ? (
+                  // The longest sentence in the lesson sits on this step, and
+                  // it is about two things being different — so show both, one
+                  // at a time, as the narration reaches each.
+                  <div className={s.compare} ref={anchor('browser.screen')}>
+                    <div className={beat(progress, 0)}>
+                      <GoogleMark />
+                      <span>Google 帳號</span>
+                      <b>已確認</b>
+                      <Check size={14} />
+                    </div>
+                    <div className={beat(progress, 0.42)}>
+                      <Fingerprint size={17} strokeWidth={1.7} />
+                      <span>My App 登入狀態</span>
+                      <b className={s.pending}>尚未建立</b>
+                    </div>
+                    <p className={beat(progress, 0.78)}>這是兩件不同的事</p>
+                  </div>
+                ) : (
+                  <>
+                    <div
+                      className={s.phoneStatus}
+                      ref={anchor('browser.screen')}
+                    >
+                      <i aria-hidden="true" />
+                      {view.stage === 6
+                        ? !onOwnSite
+                          ? '正從 Google 被導回你的 App'
+                          : !hasCode
+                            ? '已回到你的應用程式'
+                            : '網址帶回一組一次性代碼'
+                        : view.stage === 7
+                          ? '把代碼交給後端'
+                          : view.stage === 16
+                            ? '正在建立登入狀態'
+                            : '後端正在處理'}
+                    </div>
+                    {view.stage === 6 || view.stage === 7 ? (
+                      // The same ticket the address bar just delivered, so the
+                      // next step's arrow has something to pick up.
+                      <div
+                        className={`${s.codeTicket}${hasCode ? ` ${s.beatOn}` : ''}`}
+                        aria-hidden={!hasCode}
+                      >
+                        <KeyRound size={13} />
+                        <b>{demoCode(view.run)}</b>
+                        <span>一次性代碼</span>
+                      </div>
+                    ) : (
+                      <p>背後的系統正在合作。</p>
+                    )}
+                  </>
+                )}
                 <div className={s.phoneProgress}>
                   <span style={{ width: `${(view.stage / 17) * 100}%` }} />
                 </div>
@@ -266,16 +404,33 @@ function PhonePreview({
   );
 }
 
+/** What the backend is checking on the ID Token, in the order s11 says it. */
+const tokenChecks: [string, number][] = [
+  ['來源是 Google', 0.28],
+  ['發給這個 App', 0.55],
+  ['還在有效期內', 0.8],
+];
+/** What the one-time code is and is not, in the order s8 says it. */
+const codeFacts: [string, number][] = [
+  ['短效，很快就過期', 0.34],
+  ['只能用一次', 0.55],
+  ['不是密碼，也不是會員資料', 0.76],
+];
+
 function SystemMap({
   view,
   dispatch,
   refs,
   paused,
+  progress,
+  anchor,
 }: {
   view: Snapshot;
   dispatch: Dispatch<Action>;
   refs: Record<NodeId, RefObject<HTMLDivElement | null>>;
   paused: boolean;
+  progress: number;
+  anchor: (id: AnchorId) => Anchor;
 }) {
   const { stage, member } = view;
   const active = steps[stage].active;
@@ -337,17 +492,39 @@ function SystemMap({
                 onClick={() => dispatch({ type: 'INSPECT', target: 'backend' })}
                 aria-label="檢查 Backend 狀態"
               >
-                <div className={s.nodeHeading}>
+                <div className={s.nodeHeading} ref={anchor('backend')}>
                   <Server size={18} />
                   <strong>Backend</strong>
                   <ArrowUpRight size={14} />
+                </div>
+                {/* Sized like the database's table so the two cards match; it
+                    is where the steps with nothing moving show their work. */}
+                <div className={s.nodeDetail}>
+                  {stage === 8 &&
+                    codeFacts.map(([label, at]) => (
+                      <span key={label} className={beat(progress, at)}>
+                        <span className={s.factDot} />
+                        {label}
+                      </span>
+                    ))}
+                  {(stage === 11 || stage === 12) &&
+                    tokenChecks.map(([label, at]) => (
+                      <span
+                        key={label}
+                        className={beat(progress, stage === 12 ? 0 : at)}
+                        data-checked={stage === 12 || progress >= at}
+                      >
+                        <Check size={12} />
+                        {label}
+                      </span>
+                    ))}
                 </div>
                 <div className={s.nodeStatus}>
                   <span />
                   {backendStatus}
                 </div>
               </button>
-              <div className={s.receiptSlot}>
+              <div className={s.receiptSlot} ref={anchor('backend.receipt')}>
                 {stage >= 8 && (
                   <button
                     className={s.receipt}
@@ -379,7 +556,7 @@ function SystemMap({
                   <strong>Users DB</strong>
                   <ArrowUpRight size={14} />
                 </div>
-                <div className={s.databasePreview}>
+                <div className={s.databasePreview} ref={anchor('db')}>
                   {member ? (
                     <>
                       <span className={s.dbUser}>
@@ -466,19 +643,19 @@ function SystemMap({
                 </span>
               </div>
               <div className={s.googleServices}>
-                <span>
+                <span ref={anchor('google.auth')} data-done={stage >= 5}>
                   <Fingerprint size={17} />
                   <span>
                     帳號確認<small>Authentication</small>
                   </span>
-                  {stage >= 5 && <Check size={14} />}
+                  <Check size={14} className={s.serviceCheck} />
                 </span>
-                <span>
+                <span ref={anchor('google.token')} data-done={stage >= 11}>
                   <ShieldCheck size={17} />
                   <span>
                     身分憑證<small>Identity Service</small>
                   </span>
-                  {stage >= 11 && <Check size={14} />}
+                  <Check size={14} className={s.serviceCheck} />
                 </span>
               </div>
             </button>
@@ -498,14 +675,25 @@ function SystemMap({
 function DataFlow({
   view,
   refs,
+  anchors,
+  version,
   area,
   dispatch,
+  elapsed,
+  active,
   flight,
 }: {
   view: Snapshot;
   refs: Record<NodeId, RefObject<HTMLDivElement | null>>;
+  anchors: RefObject<Map<AnchorId, HTMLElement>>;
+  /** Bumped whenever an anchor mounts or unmounts, so the path remeasures. */
+  version: number;
   area: RefObject<HTMLDivElement | null>;
   dispatch: Dispatch<Action>;
+  /** Time into this step's leg off whichever clock is driving it. */
+  elapsed: number;
+  /** False while the step is still on something that is not a crossing. */
+  active: boolean;
   flight: number;
 }) {
   const markerId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
@@ -525,10 +713,17 @@ function DataFlow({
   }, []);
   useLayoutEffect(() => {
     if (!from || !to || !area.current) return;
+    // An anchor that has not rendered yet falls back to its whole card, so a
+    // leg never disappears just because its endpoint is a step away.
+    const resolve = (id: AnchorId): HTMLElement | null =>
+      anchors.current.get(id) ?? refs[anchorNode[id]].current;
     const measure = () => {
-      const parent = area.current!.getBoundingClientRect();
-      const a = refs[from].current!.getBoundingClientRect();
-      const b = refs[to].current!.getBoundingClientRect();
+      const source = resolve(from),
+        sink = resolve(to);
+      if (!area.current || !source || !sink) return;
+      const parent = area.current.getBoundingClientRect();
+      const a = source.getBoundingClientRect();
+      const b = sink.getBoundingClientRect();
       const ac = { x: a.left + a.width / 2, y: a.top + a.height / 2 },
         bc = { x: b.left + b.width / 2, y: b.top + b.height / 2 };
       const horizontal = Math.abs(ac.x - bc.x) > Math.abs(ac.y - bc.y);
@@ -554,20 +749,31 @@ function DataFlow({
     observer.observe(area.current);
     for (const ref of Object.values(refs))
       if (ref.current) observer.observe(ref.current);
+    for (const id of [from, to]) {
+      const el = resolve(id);
+      if (el) observer.observe(el);
+    }
     measure();
     return () => observer.disconnect();
-  }, [from, to, area, refs]);
+  }, [from, to, area, refs, anchors, version, view.stage]);
   useLayoutEffect(() => {
     const path = pathRef.current;
     if (path && typeof path.getTotalLength === 'function') {
       const p = path.getPointAtLength(
         path.getTotalLength() *
-          (reduced ? 0.5 : Math.min(1, view.elapsed / flight)),
+          (reduced ? 0.5 : Math.min(1, Math.max(0, elapsed) / flight)),
       );
       setPoint({ x: p.x, y: p.y });
     }
-  }, [geometry.path, view.elapsed, reduced, flight]);
-  if (!step.route || !geometry.path) return null;
+  }, [geometry.path, elapsed, reduced, flight]);
+  if (!step.route || !geometry.path || !active) return null;
+  const label =
+    step.packetLabel ??
+    (step.packet
+      ? packetNames[step.packet]
+      : to === 'db'
+        ? '查找會員'
+        : '登入狀態');
   return (
     <div className={s.flowOverlay}>
       <svg width={geometry.width} height={geometry.height} aria-hidden="true">
@@ -602,14 +808,10 @@ function DataFlow({
             target: step.packet || (to === 'db' ? 'db' : 'backend'),
           })
         }
-        aria-label={`檢查${step.packet ? packetNames[step.packet] : '資料傳輸'}`}
+        aria-label={`檢查${label}`}
       >
         <span />
-        {step.packet
-          ? packetNames[step.packet]
-          : to === 'db'
-            ? '查找會員'
-            : '登入狀態'}
+        {label}
         <ArrowUpRight size={11} />
       </button>
     </div>
@@ -620,7 +822,7 @@ function inspection(
   view: Snapshot,
   target: InspectId,
 ): { title: string; detail: string; rows: [string, string][] } {
-  const code = `DEMO-CODE-${String(view.run).padStart(3, '0')}`;
+  const code = demoCode(view.run);
   if (target === 'code')
     return {
       title: '一次性代碼 · Authorization Code',
@@ -1004,6 +1206,7 @@ export function AuthDemo() {
     google = useRef<HTMLDivElement>(null),
     db = useRef<HTMLDivElement>(null);
   const [refs] = useState(() => ({ browser, backend, google, db }));
+  const { elements, anchor, version } = useAnchors();
   const card = useRef<HTMLElement>(null);
   const { waiting } = playback;
   const lessonMinutes = Math.max(1, Math.round(playback.total / 60000));
@@ -1119,6 +1322,9 @@ export function AuthDemo() {
                 dispatch={dispatch}
                 locked={!!state.inspector}
                 waiting={waiting}
+                progress={playback.stepProgress}
+                landed={playback.landed}
+                anchor={anchor}
                 nodeRef={browser}
               />
               <SystemMap
@@ -1126,11 +1332,17 @@ export function AuthDemo() {
                 dispatch={dispatch}
                 refs={refs}
                 paused={state.paused}
+                progress={playback.stepProgress}
+                anchor={anchor}
               />
               <DataFlow
                 flight={playback.flight}
+                elapsed={playback.legElapsed}
+                active={playback.legActive}
                 view={state}
                 refs={refs}
+                anchors={elements}
+                version={version}
                 area={area}
                 dispatch={dispatch}
               />

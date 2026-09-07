@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AuthDemo } from '../AuthDemo';
 import { timelineFor, totalMs } from '../flow';
+import css from '../AuthDemo.module.css';
 
 // jsdom has no media stack, so stand up just enough of one to prove the app
 // takes its clock from the audio element instead of a timer.
@@ -69,6 +70,19 @@ beforeAll(() => {
       fake(this).time = 0;
       src.set!.call(this, value);
     },
+  });
+  // jsdom measures every element as zero and implements no path geometry, so
+  // stand in a straight 100-unit path: the packet's left then reads back as the
+  // percentage of the flight it has covered.
+  // jsdom has no SVGPathElement at all, so the geometry lands on SVGElement.
+  const svg = window.SVGElement.prototype as unknown as Record<string, unknown>;
+  Object.defineProperty(svg, 'getTotalLength', {
+    configurable: true,
+    value: () => 100,
+  });
+  Object.defineProperty(svg, 'getPointAtLength', {
+    configurable: true,
+    value: (length: number) => ({ x: length, y: 0 }),
   });
   const Native = window.Audio;
   window.Audio = class extends Native {
@@ -261,6 +275,91 @@ describe('音訊驅動', () => {
     fireEvent.click(screen.getByRole('button', { name: '繼續' }));
     await time(12000);
     expect(screen.getByText(/Welcome, Dino/)).toBeInTheDocument();
+  });
+  it('旁白在講的時候，封包真的在箭頭上飛', async () => {
+    useTimers();
+    render(<AuthDemo />);
+    // The opening clip runs out on the gate; pressing the button releases it
+    // into s1, where the narration — not the viewer — is driving.
+    await ends();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Continue with Google' }),
+    );
+    await time(200);
+    const packet = screen.getByRole('button', { name: '檢查登入請求' });
+    expect(parseFloat(packet.style.left)).toBe(0);
+    narrator().currentTime = 1.2;
+    await time(200);
+    const midway = parseFloat(packet.style.left);
+    expect(midway).toBeGreaterThan(0);
+    narrator().currentTime = 3.2;
+    await time(200);
+    expect(parseFloat(packet.style.left)).toBeGreaterThan(midway);
+  });
+  it('停在同一個畫面的段落，也會照著旁白一句一句長出來', async () => {
+    useTimers();
+    render(<AuthDemo />);
+    await ends();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Continue with Google' }),
+    );
+    for (const cue of ['s1', 's2', 's3']) {
+      await time(100);
+      expect(narrator().src).toContain(`/audio/${cue}.m4a`);
+      await ends();
+    }
+    // s4 runs out on the consent gate, so the press is what releases s5.
+    await ends();
+    fireEvent.click(screen.getByRole('button', { name: '繼續' }));
+    await time(200);
+    const line = screen.getByText('My App 登入狀態').parentElement!;
+    expect(line.className).not.toContain(css.beatOn);
+    // s5 is 8.4s long and says "身份被確認" before it says "還沒讓你登入".
+    narrator().currentTime = 5;
+    await time(200);
+    expect(line.className).toContain(css.beatOn);
+  });
+  it('先把瀏覽器倒回自己的網址，第二句話才拉出箭頭送代碼', async () => {
+    useTimers();
+    render(<AuthDemo />);
+    await ends();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Continue with Google' }),
+    );
+    for (let i = 0; i < 3; i++) {
+      await time(100);
+      await ends();
+    }
+    await ends();
+    fireEvent.click(screen.getByRole('button', { name: '繼續' }));
+    await time(100);
+    await ends();
+    await time(200);
+    const bar = () =>
+      document.querySelector(`.${css.addressBar}`)!.textContent ?? '';
+    const ticket = document.querySelector(`.${css.codeTicket}`)!;
+    const arrow = () =>
+      screen.queryByRole('button', { name: '檢查一次性代碼' });
+    // s6 opens with the browser still on Google. Nothing is crossing yet, so
+    // there is no arrow to draw.
+    expect(bar()).toContain('accounts.google.com');
+    expect(arrow()).toBeNull();
+    // Halfway through the first sentence the browser is simply back on its own
+    // address — still no packet, still no code.
+    narrator().currentTime = 2.8;
+    await time(200);
+    expect(bar()).toContain('my-app.example');
+    expect(bar()).not.toContain('code=');
+    expect(arrow()).toBeNull();
+    expect(ticket.className).not.toContain(css.beatOn);
+    // Only the second sentence sends anything across.
+    narrator().currentTime = 3.6;
+    await time(200);
+    expect(arrow()).not.toBeNull();
+    narrator().currentTime = 5.2;
+    await time(200);
+    expect(bar()).toContain('my-app.example/?code=DEMO-CODE-001');
+    expect(ticket.className).toContain(css.beatOn);
   });
   it('標題旁的時間泡泡把整堂課倒回開頭', async () => {
     useTimers();

@@ -1,14 +1,44 @@
 import { narration, type NarrationClip } from './narration/manifest';
 export type NodeId = 'browser' | 'backend' | 'google' | 'db';
 export type InspectId = NodeId | 'request' | 'code' | 'token';
+/**
+ * Where an arrow actually starts and ends. A whole card tells you two systems
+ * talked; the button, the receipt chip or the table row tells you which part of
+ * one spoke to which part of the other, which is the thing being taught.
+ */
+export type AnchorId =
+  | 'browser.action'
+  | 'browser.screen'
+  | 'backend'
+  | 'backend.receipt'
+  | 'google.auth'
+  | 'google.token'
+  | 'db';
+/** The card to fall back on while an anchor's element is not on screen yet. */
+export const anchorNode: Record<AnchorId, NodeId> = {
+  'browser.action': 'browser',
+  'browser.screen': 'browser',
+  backend: 'backend',
+  'backend.receipt': 'backend',
+  'google.auth': 'google',
+  'google.token': 'google',
+  db: 'db',
+};
 export interface Step {
   title: string;
   caption: string;
   scene: number;
   duration: number;
   active: NodeId[];
-  route?: [NodeId, NodeId];
+  route?: [AnchorId, AnchorId];
   packet?: 'request' | 'code' | 'token';
+  /** Overrides the packet's own name when this leg carries something else. */
+  packetLabel?: string;
+  /**
+   * How far into the narration the leg starts, when the first half of the
+   * sentence is about something else. Before it there is no arrow at all.
+   */
+  routeAt?: number;
 }
 export const steps: Step[] = [
   {
@@ -25,15 +55,22 @@ export const steps: Step[] = [
     scene: 1,
     duration: 700,
     active: ['browser', 'backend'],
-    route: ['browser', 'backend'],
+    route: ['browser.action', 'backend'],
     packet: 'request',
   },
   {
-    title: '後端準備 Google 登入',
-    caption: '後端準備登入請求，讓 Google 知道是哪個 App 想確認使用者身份。',
+    title: '後端把登入網址交回瀏覽器',
+    caption:
+      '後端準備好登入網址，交回瀏覽器；網址裡說明了是哪個 App 要確認身份。',
     scene: 1,
     duration: 600,
-    active: ['backend'],
+    active: ['backend', 'browser'],
+    // The redirect back is the link between "the browser asked" and "the
+    // browser went to Google"; without it the next step looks like it came
+    // from nowhere.
+    route: ['backend', 'browser.action'],
+    packet: 'request',
+    packetLabel: '登入網址',
   },
   {
     title: '瀏覽器前往 Google',
@@ -42,7 +79,7 @@ export const steps: Step[] = [
     scene: 1,
     duration: 700,
     active: ['browser', 'google'],
-    route: ['browser', 'google'],
+    route: ['browser.action', 'google.auth'],
     packet: 'request',
   },
   {
@@ -68,8 +105,11 @@ export const steps: Step[] = [
     scene: 3,
     duration: 700,
     active: ['google', 'browser'],
-    route: ['google', 'browser'],
+    route: ['google.auth', 'browser.screen'],
     packet: 'code',
+    // "Google sends the browser back to your app" comes first and is not a
+    // packet crossing; the code only travels once the sentence reaches it.
+    routeAt: 0.55,
   },
   {
     title: '瀏覽器將 Code 交給 Backend',
@@ -78,7 +118,7 @@ export const steps: Step[] = [
     scene: 3,
     duration: 700,
     active: ['browser', 'backend'],
-    route: ['browser', 'backend'],
+    route: ['browser.screen', 'backend.receipt'],
     packet: 'code',
   },
   {
@@ -96,7 +136,7 @@ export const steps: Step[] = [
     scene: 4,
     duration: 700,
     active: ['backend', 'google'],
-    route: ['backend', 'google'],
+    route: ['backend.receipt', 'google.token'],
     packet: 'code',
   },
   {
@@ -106,7 +146,7 @@ export const steps: Step[] = [
     scene: 4,
     duration: 700,
     active: ['google', 'backend'],
-    route: ['google', 'backend'],
+    route: ['google.token', 'backend.receipt'],
     packet: 'token',
   },
   {
@@ -156,7 +196,7 @@ export const steps: Step[] = [
     scene: 5,
     duration: 700,
     active: ['backend', 'browser'],
-    route: ['backend', 'browser'],
+    route: ['backend', 'browser.screen'],
   },
   {
     title: 'Google 身份，對應到你的 App 會員',

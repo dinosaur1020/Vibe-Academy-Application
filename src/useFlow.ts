@@ -34,6 +34,17 @@ export interface Playback {
   waiting: boolean;
   /** How long the packet animation takes inside the current step. */
   flight: number;
+  /** Milliseconds into the step the scene is showing, off whichever clock drives. */
+  stepElapsed: number;
+  /** The same, as 0..1 across the whole step, for staging beats inside one. */
+  stepProgress: number;
+  /** True once the packet has finished crossing, so the scene can react to it. */
+  landed: boolean;
+  /** Milliseconds into this step's leg; before it starts there is no arrow. */
+  legElapsed: number;
+  /** Whether the leg has started at all. A step can spend its first half on
+   *  something that is not a packet crossing. */
+  legActive: boolean;
   narration: Narration;
   seekTo: (ms: number) => void;
   /** Rewind to the very start and play, straight from a user gesture. */
@@ -159,6 +170,25 @@ export function useFlow() {
       (steps[stage].duration
         ? Math.min(1, state.elapsed / steps[stage].duration)
         : 0);
+  // Whichever pointer is driving owns the animation clock. Narration freezes
+  // the scene's own ticker, so reading state.elapsed there would leave every
+  // packet parked on its origin for the length of the sentence.
+  const live = audioDriving && !hand && stage === state.audio;
+  const stepElapsed = live ? state.audioElapsed : state.elapsed;
+  // Beats spread across the whole sentence, unlike the packet, which crosses
+  // early and then rests at its destination.
+  const span = live
+    ? (segment?.ms ?? steps[stage].duration)
+    : steps[stage].duration;
+  // A leg can start partway through its sentence. The flight is then measured
+  // against what is left of the clip, so the packet still lands with enough
+  // time for the scene to react to its arrival.
+  const lead = live ? span * (steps[stage].routeAt ?? 0) : 0;
+  const legElapsed = stepElapsed - lead;
+  const flight = flightMs(
+    stage,
+    hand ? undefined : live ? span - lead : clip?.ms,
+  );
   const playback: Playback = {
     timeline,
     segment,
@@ -167,7 +197,12 @@ export function useFlow() {
     waiting: isWaiting(state),
     // A hand-driven step gets the quick flight; a narrated one is stretched to
     // sit inside the sentence describing it.
-    flight: flightMs(stage, hand ? undefined : clip?.ms),
+    flight,
+    stepElapsed,
+    stepProgress: span ? Math.min(1, stepElapsed / span) : 1,
+    landed: legElapsed >= flight,
+    legElapsed,
+    legActive: legElapsed >= 0,
     narration,
     seekTo,
     restart,

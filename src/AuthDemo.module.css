@@ -495,6 +495,54 @@ h1 {
   margin-left: 4px;
   color: #a3a8b0;
 }
+/* The redirect is the code's delivery: watching the address change from
+   Google's to your own — with the code stuck on the end — is the clearest
+   evidence of that anywhere in the lesson. */
+.addressBar b {
+  font-weight: 600;
+  color: #7c3aed;
+  background: #f1ecfe;
+  border-radius: 3px;
+  padding: 1px 3px;
+}
+.addressBar[data-returning='true'] {
+  transition:
+    background 0.4s ease,
+    color 0.4s ease;
+  background: #f6f2ff;
+  color: #6d7280;
+}
+.codeTicket {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 16px;
+  padding: 8px 11px;
+  border: 1px dashed #c4b5fd;
+  background: #faf8ff;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #6d28d9;
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 0.32s ease,
+    transform 0.32s ease;
+}
+.codeTicket b {
+  font-family: monospace;
+  font-weight: 600;
+}
+.codeTicket > span {
+  color: #9b8fbb;
+}
+@media (prefers-reduced-motion: reduce) {
+  .codeTicket {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
 .phoneContent {
   padding: 20px 17px 8px;
   display: flex;
@@ -567,6 +615,29 @@ h1 {
 .googleButton svg {
   width: 17px;
   height: 17px;
+}
+/* The button stays where it is while its request travels; only the mark in
+   front of the label turns over, so the arrow keeps a fixed origin. */
+.buttonSpinner {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid #dcdfe5;
+  border-top-color: #8b5cf6;
+  animation: spin 0.75s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Working, not unavailable: it keeps its weight so the arrow leaving it still
+   reads as leaving the thing you pressed. Being locked by an open panel is a
+   different state, and still dims. */
+.googleButton[data-sending='true']:disabled {
+  opacity: 1;
+  color: #6b7280;
 }
 .noPassword {
   display: flex;
@@ -778,6 +849,41 @@ h1 {
   height: 52px;
   padding-top: 9px;
 }
+/* Matches .databasePreview so the two cards in the row stay the same height
+   whether or not this step has anything to show. */
+.nodeDetail {
+  height: 52px;
+  padding-top: 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+.nodeDetail > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #8ea0ba;
+  line-height: 1.3;
+}
+.nodeDetail > span > svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  color: #45566f;
+  transition: color 0.3s ease;
+}
+.nodeDetail > span[data-checked='true'] > svg {
+  color: #5dc49f;
+}
+.factDot {
+  width: 4px;
+  height: 4px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #8b5cf6;
+}
 .tableHeader {
   display: flex;
   justify-content: space-between;
@@ -955,6 +1061,24 @@ h1 {
 .googleServices > span > svg:last-child:not(:first-child) {
   margin-left: auto;
   color: #5dc49f;
+}
+/* Always mounted, so landing on it reads as the tick arriving rather than the
+   row silently being different. */
+.serviceCheck {
+  opacity: 0;
+  transform: scale(0.6);
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s cubic-bezier(0.2, 1.5, 0.4, 1);
+}
+.googleServices > span[data-done='true'] .serviceCheck {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .serviceCheck {
+    transition: none;
+  }
 }
 .systemCaption {
   font-size: 12px;
@@ -1375,6 +1499,91 @@ h1 {
   background: #497de0;
   color: white;
   padding: 9px 14px;
+}
+/* A beat is a line the narration has not reached yet. Everything about it is
+   in place already, so arriving only costs an opacity and a few pixels. */
+.beat {
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 0.32s ease,
+    transform 0.32s ease;
+}
+.beatOn {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .beat {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+.compare {
+  width: 100%;
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.compare > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  font-size: 13px;
+  color: #3f4756;
+  border: 1px solid #e6e8ee;
+  border-radius: 8px;
+  padding: 9px 10px;
+}
+.compare > div > span {
+  flex: 1;
+  min-width: 0;
+}
+.compare svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  color: #5dc49f;
+}
+.compare b {
+  font-weight: 600;
+  color: #2f9d78;
+}
+.compare b.pending {
+  color: #b08a3c;
+}
+.compare > div:has(b.pending) {
+  border-style: dashed;
+  border-color: #e3d5b4;
+  background: #fdfaf2;
+}
+.compare > p {
+  font-size: 12px;
+  color: #9b8fbb;
+}
+.phoneStatus {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 16px;
+  font-size: 13px;
+  color: #5b6373;
+  border: 1px solid #e9e4f8;
+  background: #f7f5fd;
+  border-radius: 999px;
+  padding: 6px 12px;
+}
+.phoneStatus > i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #8b5cf6;
+}
+.phoneContent .phoneStatus + p {
+  margin-top: 10px;
 }
 .processingIcon {
   margin-top: 28px;
