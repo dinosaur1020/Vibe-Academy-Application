@@ -34,6 +34,7 @@ export type StageId =
   | 'redirect'
   | 'toGoogle'
   | 'consent'
+  | 'granted'
   | 'confirmed'
   | 'back'
   | 'codeBack'
@@ -67,6 +68,8 @@ export interface Step {
   packet?: 'request' | 'code' | 'token';
   /** Overrides the packet's own name when this leg carries something else. */
   packetLabel?: string;
+  /** What the packet opens when it is not one of the named artefacts. */
+  packetInspect?: InspectId;
 }
 export const steps: Step[] = [
   {
@@ -129,14 +132,30 @@ export const steps: Step[] = [
     active: ['google'],
   },
   {
-    id: 'confirmed',
+    id: 'granted',
     cue: 's5',
+    title: 'Google 確認了這個帳號是你的',
+    caption:
+      '你按下繼續，Google 確認了你就是這個帳號的主人。這一步只發生在 Google 這邊。',
+    scene: 2,
+    duration: 1400,
+    active: ['browser', 'google'],
+    // The press itself is the packet, so the button it left has to still be
+    // on screen: this step keeps the consent screen up for exactly that.
+    route: ['browser.action', 'google.auth'],
+    sides: ['bottom', 'bottom'],
+    packetLabel: '你的同意',
+    packetInspect: 'google',
+  },
+  {
+    id: 'confirmed',
+    cue: 's5b',
     title: 'Google 已確認，My App 還沒登入',
     caption:
       'Google 已經確認這個帳號，但 My App 還需要完成自己的登入流程。這是兩件不同的事。',
     scene: 2,
     duration: 2000,
-    active: ['google'],
+    active: ['browser', 'google'],
   },
   {
     id: 'back',
@@ -421,7 +440,7 @@ export function reducer(state: FlowState, action: Action): FlowState {
         : state;
     case 'CONTINUE':
       return state.stage === S.consent && !state.inspector
-        ? release(enter({ ...state, hand: true }, S.confirmed))
+        ? release(enter({ ...state, hand: true }, S.granted))
         : state;
     // Cancelling abandons the run rather than nudging the view, so the
     // narration goes back to the start with it and picks up its own cue.
@@ -455,11 +474,20 @@ export function reducer(state: FlowState, action: Action): FlowState {
     case 'ADVANCE':
       if (action.run !== state.run || action.stage !== state.audio)
         return state;
-      // Nothing follows the last step, and a gate waits for the viewer.
-      return state.audio >= lastStage ||
-        (isStop(state.audio) && state.stage <= state.audio)
-        ? { ...state, held: true }
-        : narrate(state, nextAudio(state));
+      // Nothing follows the last step.
+      if (state.audio >= lastStage) return { ...state, held: true };
+      // A gate waits for the viewer — including one whose viewer has already
+      // pressed ahead of the narration. The sentence that just finished is the
+      // one asking for the press, so the scene goes back to the screen it is
+      // asking about rather than leaving the words pointing at nothing.
+      if (isStop(state.audio))
+        return {
+          ...enter({ ...state, hand: false, inspector: null }, state.audio),
+          // The clip really did finish; the bar stays at the end of it.
+          audioElapsed: state.audioElapsed,
+          held: true,
+        };
+      return narrate(state, nextAudio(state));
     case 'SEEK': {
       const target = stateAtStage(state, action.stage);
       return {
@@ -551,6 +579,7 @@ export type CueId =
   | 's3'
   | 's4'
   | 's5'
+  | 's5b'
   | 's6'
   | 's6b'
   | 's7'

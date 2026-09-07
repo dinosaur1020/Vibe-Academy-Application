@@ -73,15 +73,34 @@ describe('Google 登入教學狀態機', () => {
     );
   });
   it('手動跑在前面時，旁白進到新段落會把畫面收回去', () => {
-    // Narration on the intro, the viewer already at the consent gate.
-    let state = { ...start(), narrating: true, audio: S.idle };
+    // Narration on s1, the viewer already at the consent gate.
+    let state = { ...start(), narrating: true, audio: S.request };
     state = runUntil(state, S.consent);
     expect(state.stage).toBe(S.consent);
-    expect(state.audio).toBe(S.idle);
-    state = reducer(state, { type: 'ADVANCE', run: state.run, stage: S.idle });
     expect(state.audio).toBe(S.request);
-    expect(state.stage).toBe(S.request);
+    state = reducer(state, {
+      type: 'ADVANCE',
+      run: state.run,
+      stage: S.request,
+    });
+    expect(state.audio).toBe(S.redirect);
+    expect(state.stage).toBe(S.redirect);
     expect(state.hand).toBe(false);
+  });
+  it('旁白講到請你按按鈕時，畫面退回那顆還沒被按的按鈕', () => {
+    // The viewer pressed while the intro was still talking, so the scene ran
+    // ahead of the words. The intro ends on "準備好就按下登入按鈕".
+    let state = { ...start(), narrating: true, audio: S.idle };
+    state = runUntil(state, S.consent);
+    state = reducer(state, { type: 'ADVANCE', run: state.run, stage: S.idle });
+    expect(state.audio).toBe(S.idle);
+    expect(state.stage).toBe(S.idle);
+    expect(state.held).toBe(true);
+    expect(isWaiting(state)).toBe(true);
+    // Pressing it now moves both pointers together, which is the whole point.
+    const started = reducer(state, { type: 'START' });
+    expect(started.stage).toBe(S.request);
+    expect(started.audio).toBe(S.request);
   });
   it('旁白停在關卡等使用者，按下按鈕才放行', () => {
     const state = { ...initialState(), narrating: true };
@@ -125,6 +144,12 @@ describe('Google 登入教學狀態機', () => {
     // Backend and Google sit one above the other, so that pair connects
     // bottom-to-top; Backend and the DB sit side by side, so their leg arcs
     // over both tops instead of cutting through the gap.
+    // Pressing 繼續 has to land somewhere: the answer leaves the button that
+    // was pressed — which is why that screen survives one step past the press
+    // — and lands on the service that checks who you are.
+    expect(steps[S.granted].route).toEqual(['browser.action', 'google.auth']);
+    expect(steps[S.granted].sides).toEqual(['bottom', 'bottom']);
+    expect(steps[S.confirmed].route).toBeUndefined();
     expect(steps[S.exchange].sides).toEqual(['bottom', 'top']);
     expect(steps[S.tokenBack].sides).toEqual(['top', 'bottom']);
     expect(steps[S.lookup].sides).toEqual(['top', 'top']);

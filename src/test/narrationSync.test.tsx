@@ -138,6 +138,17 @@ describe('音訊驅動', () => {
     expect(narrator().src).toContain('/audio/intro.m4a');
     await ends();
     await time(300);
+    // The intro ends on the sentence asking for the press, so it takes the
+    // scene back to the button rather than leaving the words pointing at a
+    // screen that has already moved on.
+    expect(narrator().src).toContain('/audio/intro.m4a');
+    expect(
+      screen.getByRole('button', { name: 'Continue with Google' }),
+    ).toBeEnabled();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Continue with Google' }),
+    );
+    await time(300);
     expect(narrator().src).toContain('/audio/s1.m4a');
     // Entering a segment takes the scene back from the viewer.
     expect(screen.getByText('My App 收到登入請求')).toBeInTheDocument();
@@ -160,6 +171,8 @@ describe('音訊驅動', () => {
   it('旁白進到新段落時，把畫面和資料面板一起收回來', async () => {
     useTimers();
     render(<AuthDemo />);
+    // Clear the opening gate first, so this is about an ordinary segment.
+    await ends();
     fireEvent.click(
       screen.getByRole('button', { name: 'Continue with Google' }),
     );
@@ -174,7 +187,9 @@ describe('音訊驅動', () => {
     expect(
       screen.queryByRole('button', { name: '關閉資料檢查' }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText('My App 收到登入請求')).toBeInTheDocument();
+    expect(
+      screen.getAllByText('後端把登入網址交回瀏覽器').length,
+    ).toBeGreaterThan(0);
   });
   it('等待互動的步驟，旁白播完仍停在原地', async () => {
     useTimers();
@@ -213,10 +228,10 @@ describe('音訊驅動', () => {
     narrator().currentTime = 2;
     await time(200);
     expect(clock().split(' / ')[0]).toBe('0:02');
+    await ends();
     fireEvent.click(
       screen.getByRole('button', { name: 'Continue with Google' }),
     );
-    await ends();
     await time(300);
     narrator().currentTime = 2;
     await time(200);
@@ -308,14 +323,20 @@ describe('音訊驅動', () => {
       expect(narrator().src).toContain(`/audio/${cue}.m4a`);
       await ends();
     }
-    // s4 runs out on the consent gate, so the press is what releases s5.
+    // s4 runs out on the consent gate, so the press is what releases s5 — one
+    // short line that keeps the pressed button on screen. s5b is the stretch that
+    // stands still, and so the one that has to grow.
     await ends();
     fireEvent.click(screen.getByRole('button', { name: '繼續' }));
     await time(200);
+    expect(narrator().src).toContain('/audio/s5.m4a');
+    await ends();
+    await time(200);
+    expect(narrator().src).toContain('/audio/s5b.m4a');
     const line = screen.getByText('My App 登入狀態').parentElement!;
     expect(line.className).not.toContain(css.beatOn);
-    // s5 is 8.4s long and says "身份被確認" before it says "還沒讓你登入".
-    narrator().currentTime = 5;
+    // s5b says "身份被確認" before it says "還沒讓你登入".
+    narrator().currentTime = 4;
     await time(200);
     expect(line.className).toContain(css.beatOn);
   });
@@ -330,9 +351,12 @@ describe('音訊驅動', () => {
       await time(100);
       await ends();
     }
-    // s4 runs out on the consent gate, so the press is what releases s5.
+    // s4 runs out on the consent gate, so the press is what releases s5;
+    // s5 and s5b both play out before the browser is sent back.
     await ends();
     fireEvent.click(screen.getByRole('button', { name: '繼續' }));
+    await time(100);
+    await ends();
     await time(100);
     await ends();
     await time(200);
@@ -362,10 +386,10 @@ describe('音訊驅動', () => {
   it('標題旁的時間泡泡把整堂課倒回開頭', async () => {
     useTimers();
     render(<AuthDemo />);
+    await ends();
     fireEvent.click(
       screen.getByRole('button', { name: 'Continue with Google' }),
     );
-    await ends();
     await time(300);
     expect(screen.getByText('My App 收到登入請求')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /從頭播放解說/ }));

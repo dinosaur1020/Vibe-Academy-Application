@@ -49,12 +49,10 @@
    The spacer mirrors the rail so the card stays centred in the viewport,
    and the rail lives in its own column — it can never overlap the content. */
 .page {
-  /* The card never grows past the width it has at the moment the rail
-     collapses into the dock (a 1200px viewport, where the gutter, rail and
-     gap resolve to 26.4 + 112.8 + 24 on each side). Past that point the extra
-     room goes to the rails, so the lesson keeps the proportions it was drawn
-     at instead of stretching. */
-  --content-max: 874px;
+  /* The rail-collapse width (874px at a 1200px viewport) is the ceiling this
+     was drawn against; a shade under it reads tighter without changing which
+     side the extra room goes to — past this, the rails take it, not the card. */
+  --content-max: 810px;
   --gutter: clamp(20px, 2.2vw, 36px);
   --rail-w: clamp(104px, 9.4vw, 154px);
   --rail-gap: clamp(18px, 2vw, 32px);
@@ -359,6 +357,16 @@ h1 {
   position: relative;
   z-index: 7;
 }
+/* Turning the login down is a real answer to this gate, so it comes up out of
+   the scrim with the button being asked for — without the ring, which belongs
+   to the action the lesson is waiting on. */
+.spotlight .lift {
+  position: relative;
+  z-index: 7;
+  background: #fff;
+  box-shadow: 0 0 0 1px #dde2ec;
+  border-radius: 999px;
+}
 .cta {
   /* Static ring survives prefers-reduced-motion, which kills the animation. */
   box-shadow: 0 0 0 3px #8b5cf629;
@@ -557,6 +565,9 @@ h1 {
   text-align: center;
 }
 .appLogo {
+  /* The opening screen sits lower than the ones that follow it: it is mostly
+     one button, and hanging it off the top of the phone reads as unfinished. */
+  margin-top: 24px;
   width: 50px;
   height: 50px;
   display: grid;
@@ -698,32 +709,53 @@ h1 {
 }
 .systemBoxes {
   display: grid;
-  grid-template-rows: auto 1fr;
+  /* Google's card is only as tall as what it says; whatever height is left
+     over in the column goes to the app card, which has far more to show. */
+  grid-template-rows: 1fr auto;
   min-height: var(--stage-h);
   gap: 11px;
-  color: #d6dfea;
+  /* One palette for every card in this column. The two groups differ by their
+     accent alone — same surface, same border, same type colours — so nothing
+     reads as a different kind of card just because it sits lower down. */
+  --card-bg: linear-gradient(125deg, #111d31, #0c1627);
+  --card-line: #27364f;
+  --box-bg: #152035;
+  --box-line: #2c3850;
+  --card-ink: #e8eff8;
+  --card-ink-2: #bcc9dc;
+  --card-ink-3: #92a1b8;
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  color: var(--card-ink-2);
 }
 .appGroup,
 .googleGroup {
-  border: 1px solid #25344d;
+  border: 1px solid var(--card-line);
   border-radius: 15px;
   padding: 13px;
   box-shadow: 0 10px 18px #1521370b;
   overflow: visible;
-  background: linear-gradient(125deg, #111d31, #0c1627);
+  background: var(--card-bg);
 }
-.googleGroup {
+.appGroup {
+  --accent: #a78bfa;
   display: flex;
   flex-direction: column;
-  border-color: #2d4b53;
-  background: linear-gradient(125deg, #10202f, #0b1926);
+}
+.googleGroup {
+  --accent: #67c2a5;
+  display: flex;
+  flex-direction: column;
 }
 .systemCardHeading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  margin-bottom: 12px;
+  /* The rule under the header is the shape both cards are cut to. Its own
+     spacing is kept tight: the column has to end level with the phone. */
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--card-line);
+  margin-bottom: 10px;
 }
 .systemCardHeading > div {
   display: flex;
@@ -733,12 +765,13 @@ h1 {
   min-width: 0;
 }
 .systemCardHeading strong {
-  color: #d6ddea;
+  font-family: var(--mono);
+  color: var(--card-ink);
   font-size: 12px;
-  letter-spacing: 1.25px;
+  letter-spacing: 1.4px;
 }
 .systemCardHeading > div > span:last-child {
-  color: #7b8ca6;
+  color: var(--card-ink-3);
   font-size: 12px;
 }
 .miniDot,
@@ -746,34 +779,31 @@ h1 {
   width: 6px;
   height: 6px;
   flex: 0 0 auto;
-  background: #a78bfa;
+  background: var(--accent);
   border-radius: 50%;
-  box-shadow: 0 0 7px #8b5cf644;
-}
-.googleHeadingDot {
-  background: #67c2a5;
-  box-shadow: 0 0 7px #67c2a544;
+  box-shadow: 0 0 7px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 .exchangeHint {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #8498a7;
+  color: var(--card-ink-3);
   font-size: 12px;
-  border-top: 1px solid #25414a;
-  padding: 8px 0 10px;
+  padding: 0 0 8px;
 }
+/* Tinted with its own card's accent, the same pill on both. */
 .liveBadge {
   font-family: inherit;
   letter-spacing: 0;
   font-size: 12px;
-  color: #a5acc0;
-  background: #1b263a;
-  border: 1px solid #2c3749;
-  padding: 3px 7px;
-  border-radius: 4px;
+  color: color-mix(in srgb, var(--accent) 78%, white);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+  padding: 3px 10px;
+  border-radius: 999px;
 }
 .appNodes {
+  flex: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
@@ -783,9 +813,11 @@ h1 {
   --detail-h: 64px;
 }
 .node {
-  border: 1px solid #2c3850;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--box-line);
   border-radius: 10px;
-  background: #152035;
+  background: var(--box-bg);
   transition:
     border-color 0.2s,
     box-shadow 0.2s;
@@ -796,20 +828,27 @@ h1 {
   width: 100%;
   display: block;
   text-align: left;
+  min-width: 0;
   background: none;
   border: 0;
   padding: 11px 11px 0;
   border-radius: 10px;
   color: inherit;
 }
-.node:has(.nodeButton:hover) {
+.node .nodeButton {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.node:has(.nodeButton:hover),
+.googleNode:has(.nodeButton:hover) {
   background: #ffffff04;
 }
 .nodeHeading {
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #b3bcd0;
+  color: var(--card-ink);
 }
 .nodeHeading > svg:first-child {
   color: var(--node-color);
@@ -821,14 +860,14 @@ h1 {
 }
 .nodeHeading > svg:last-child {
   margin-left: auto;
-  color: #62718b;
+  color: #7b8ba5;
 }
 .nodeStatus {
   /* Directly under the card's name: what this box is doing right now belongs
      with the title, not stranded under everything it is holding. */
   margin-top: 3px;
   font-size: 12px;
-  color: #96a4bc;
+  color: var(--card-ink-2);
   display: flex;
   gap: 5px;
   align-items: center;
@@ -849,7 +888,7 @@ h1 {
     0 0 20px color-mix(in srgb, var(--node-color) 7%, transparent);
 }
 .activeNode .nodeStatus {
-  color: #d7dfee;
+  color: #f2f6fb;
 }
 .activeNode .nodeStatus > span {
   background: var(--node-color);
@@ -858,12 +897,14 @@ h1 {
   --node-color: #e0b774;
 }
 .databasePreview {
-  height: var(--detail-h);
+  flex: 1;
+  min-height: var(--detail-h);
   padding-top: 9px;
 }
 /* The backend's half of that shared box: what it is holding right now. */
 .nodeDetail {
-  height: var(--detail-h);
+  flex: 1;
+  min-height: var(--detail-h);
   padding-top: 9px;
   display: flex;
   flex-direction: column;
@@ -875,14 +916,14 @@ h1 {
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #8ea0ba;
+  color: var(--card-ink-2);
   line-height: 1.3;
 }
 .nodeDetail > span > svg {
   width: 12px;
   height: 12px;
   flex-shrink: 0;
-  color: #45566f;
+  color: #63748f;
   transition: color 0.3s ease;
 }
 .nodeDetail > span[data-checked='true'] > svg {
@@ -890,10 +931,10 @@ h1 {
 }
 /* Nothing in hand yet — the backend's answer to the database's empty table. */
 .detailEmpty {
-  color: #64728a;
+  color: var(--card-ink-3);
 }
 .detailEmpty > .factDot {
-  background: #46566f;
+  background: #5b6c88;
 }
 .factDot {
   width: 4px;
@@ -905,11 +946,11 @@ h1 {
 .tableHeader {
   display: flex;
   justify-content: space-between;
-  font-family: monospace;
+  font-family: var(--mono);
   font-size: 12px;
   line-height: 1.3;
   letter-spacing: 0.5px;
-  color: #586985;
+  color: var(--card-ink-3);
   border-bottom: 1px solid #2b364a;
   padding-bottom: 6px;
 }
@@ -918,7 +959,7 @@ h1 {
   gap: 15px;
   font-size: 12px;
   line-height: 1.3;
-  color: #78859b;
+  color: var(--card-ink-2);
   padding: 7px 0;
 }
 .dbUser {
@@ -939,11 +980,12 @@ h1 {
 .dbUser strong {
   font-size: 12px;
   font-weight: 500;
+  color: var(--card-ink);
 }
 .dbUser small {
   display: block;
   font-size: 12px;
-  color: #94a0b5;
+  color: var(--card-ink-3);
   font-weight: 400;
   margin-top: 3px;
 }
@@ -966,39 +1008,18 @@ h1 {
   color: #c4b5fd;
   border: 1px solid #8b5cf655;
   background: #8b5cf613;
-  border-radius: 4px;
+  border-radius: 999px;
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 5px;
+  padding: 2px 8px;
 }
 .memberChip {
   color: #6ed7b5;
   border-color: #3caf8a33;
   background: #3caf8a0a;
 }
-.exchangeLane {
-  height: 49px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-.exchangeLane > span:not(.laneLine) {
-  font-size: 12px;
-  color: #7d8ba2;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  white-space: nowrap;
-}
-.laneLine {
-  width: 27px;
-  height: 1px;
-  background: #29344a;
-}
 .googleNode {
-  flex: 1;
   display: flex;
   --node-color: #6fbba2;
   border-radius: 10px;
@@ -1026,8 +1047,7 @@ h1 {
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding: 11px;
+  padding: 8px;
 }
 .googleNodeHeading {
   display: flex;
@@ -1054,15 +1074,16 @@ h1 {
 .googleNodeHeading strong {
   font-size: 13px;
   font-weight: 600;
+  color: var(--card-ink);
 }
 .googleNodeHeading > div > span {
   font-size: 12px;
-  color: #8897ab;
+  color: var(--card-ink-3);
 }
 .googleState {
   margin-left: auto;
   font-size: 12px;
-  color: #8eab9f;
+  color: var(--card-ink-2);
   display: flex;
   align-items: center;
   gap: 3px;
@@ -1071,28 +1092,28 @@ h1 {
 .googleServices {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  margin-top: 10px;
+  margin-top: 8px;
   gap: 8px;
 }
 .googleServices > span {
   display: flex;
   align-items: center;
   gap: 7px;
-  background: #101a2b;
-  border: 1px solid #233147;
-  border-radius: 6px;
+  background: var(--box-bg);
+  border: 1px solid var(--box-line);
+  border-radius: 10px;
   padding: 7px;
-  color: #b4bfd1;
+  color: var(--card-ink-2);
   font-size: 12px;
 }
 .googleServices > span > svg {
-  color: #8292aa;
+  color: #98a8c0;
 }
 .googleServices small {
   overflow-wrap: anywhere;
   display: block;
   font-size: 12px;
-  color: #6d7e98;
+  color: var(--card-ink-3);
   margin-top: 2px;
   letter-spacing: 0.2px;
 }
@@ -1226,7 +1247,7 @@ h1 {
   backdrop-filter: blur(14px);
 }
 .playbackInner {
-  max-width: var(--content-max, 874px);
+  max-width: var(--content-max, 810px);
   min-height: 50px;
   margin: 0 auto;
   display: flex;
@@ -1527,16 +1548,20 @@ h1 {
   background: none;
   color: #3f6dc0;
   font-size: 12px;
-  padding: 9px 10px;
+  padding: 9px 14px;
   border-radius: 6px;
   display: flex;
   align-items: center;
   gap: 5px;
 }
+/* A pressed button that stays on screen so its arrow has somewhere to start:
+   it is out of action, but it must not read as unavailable. */
+.consentButtons button[data-sending='true']:disabled {
+  opacity: 1;
+}
 .consentButtons button:last-child {
   background: #497de0;
   color: white;
-  padding: 9px 14px;
 }
 /* A beat is a line the narration has not reached yet. Everything about it is
    in place already, so arriving only costs an opacity and a few pixels. */
@@ -1819,7 +1844,7 @@ h1 {
     padding: 16px;
   }
   .googleNode .nodeButton {
-    padding: 13px;
+    padding: 10px;
   }
   .phoneContent {
     padding-top: 24px;
@@ -1959,7 +1984,7 @@ h1 {
     padding-left: 13px;
   }
   .googleNode .nodeButton {
-    padding: 14px;
+    padding: 11px;
   }
   .nodeHeading strong,
   .googleNodeHeading strong {
@@ -1988,9 +2013,6 @@ h1 {
     font-size: 12px;
   }
   .emptyRow {
-    font-size: 12px;
-  }
-  .exchangeLane > span:not(.laneLine) {
     font-size: 12px;
   }
   .receipt,
@@ -2195,7 +2217,7 @@ h1 {
     font-size: 12px;
   }
   .googleNode .nodeButton {
-    padding: 12px 9px;
+    padding: 9px;
   }
   .googleNodeHeading {
     gap: 7px;
@@ -2227,12 +2249,6 @@ h1 {
   }
   .googleServices svg {
     width: 14px;
-  }
-  .exchangeLane {
-    height: 51px;
-  }
-  .exchangeLane > span:not(.laneLine) {
-    font-size: 12px;
   }
   .systemCaption {
     font-size: 12px;

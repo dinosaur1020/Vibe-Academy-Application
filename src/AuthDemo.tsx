@@ -157,7 +157,10 @@ function PhonePreview({
   nodeRef: RefObject<HTMLDivElement | null>;
 }) {
   const cta = waiting ? ` ${s.cta}` : '';
-  const consent = view.stage === S.consent;
+  // The consent screen stays up for the step after the press: the arrow leaves
+  // the button that was pressed, so that button has to still be there.
+  const consent = view.stage === S.consent || view.stage === S.granted;
+  const pressed = view.stage === S.granted;
   // The button stays put while the request it sent is still travelling, so the
   // arrow really does leave the thing you pressed and come back to it.
   const ready = view.stage <= S.toGoogle;
@@ -228,7 +231,8 @@ function PhonePreview({
                 </p>
                 <div className={s.consentButtons}>
                   <button
-                    disabled={locked}
+                    className={s.lift}
+                    disabled={locked || pressed}
                     onClick={() => dispatch({ type: 'CANCEL' })}
                   >
                     取消
@@ -236,7 +240,8 @@ function PhonePreview({
                   <button
                     className={cta.trim()}
                     ref={anchor('browser.action')}
-                    disabled={locked}
+                    data-sending={pressed}
+                    disabled={locked || pressed}
                     onClick={() => dispatch({ type: 'CONTINUE' })}
                   >
                     {view.returning ? '使用這個帳號' : '繼續'}
@@ -250,9 +255,6 @@ function PhonePreview({
                   <Fingerprint size={32} strokeWidth={1.6} />
                 </div>
                 <span className={s.appName}>My App</span>
-                <h2>
-                  歡迎回來<span>從這裡，開始。</span>
-                </h2>
                 <p>用熟悉的帳號，輕鬆登入。</p>
                 <button
                   className={`${s.googleButton}${cta}`}
@@ -401,10 +403,6 @@ function PhonePreview({
               </>
             )}
           </div>
-          <div className={s.phoneFootnote}>
-            <ShieldCheck size={12} />
-            教學模擬，不會連線至 Google
-          </div>
           <div className={s.homeIndicator} />
         </div>
       </div>
@@ -438,6 +436,7 @@ function SystemMap({
   refs,
   paused,
   progress,
+  landed,
   anchor,
 }: {
   view: Snapshot;
@@ -445,12 +444,18 @@ function SystemMap({
   refs: Record<NodeId, RefObject<HTMLDivElement | null>>;
   paused: boolean;
   progress: number;
+  landed: boolean;
   anchor: (id: AnchorId) => Anchor;
 }) {
   const { stage, member } = view;
   const active = steps[stage].active;
+  // Google has confirmed the account once the press has actually arrived.
+  const authDone = stage > S.granted || (stage === S.granted && landed);
   const backendStatus =
-    stage === S.idle || stage === S.consent || stage === S.confirmed
+    stage === S.idle ||
+    stage === S.consent ||
+    stage === S.granted ||
+    stage === S.confirmed
       ? '等待登入資料'
       : stage < S.codeHeld
         ? '準備登入流程'
@@ -637,7 +642,7 @@ function SystemMap({
               <span>第三方身份提供者</span>
             </div>
             <span className={s.liveBadge}>
-              {stage >= S.confirmed ? '身份已確認' : '等待確認'}
+              {authDone ? '身份已確認' : '等待確認'}
             </span>
           </div>
           <div className={s.exchangeHint}>
@@ -664,7 +669,7 @@ function SystemMap({
                   <span>第三方身份提供者</span>
                 </div>
                 <span className={s.googleState}>
-                  {stage >= S.confirmed ? (
+                  {authDone ? (
                     <>
                       <Check size={12} />
                       身份已確認
@@ -675,10 +680,7 @@ function SystemMap({
                 </span>
               </div>
               <div className={s.googleServices}>
-                <span
-                  ref={anchor('google.auth')}
-                  data-done={stage >= S.confirmed}
-                >
+                <span ref={anchor('google.auth')} data-done={authDone}>
                   <Fingerprint size={17} />
                   <span>
                     帳號確認<small>Authentication</small>
@@ -871,7 +873,10 @@ function DataFlow({
         onClick={() =>
           dispatch({
             type: 'INSPECT',
-            target: step.packet || (to === 'db' ? 'db' : 'backend'),
+            target:
+              step.packetInspect ??
+              step.packet ??
+              (to === 'db' ? 'db' : 'backend'),
           })
         }
         aria-label={`檢查${label}`}
@@ -979,7 +984,7 @@ function inspection(
       rows: [
         [
           '帳號確認',
-          view.stage >= S.confirmed ? '✓ Dino · dino@example.com' : '等待確認',
+          view.stage >= S.granted ? '✓ Dino · dino@example.com' : '等待確認',
         ],
         [
           '身分憑證',
@@ -1410,6 +1415,7 @@ export function AuthDemo() {
                 refs={refs}
                 paused={state.paused}
                 progress={playback.stepProgress}
+                landed={playback.landed}
                 anchor={anchor}
               />
               <DataFlow

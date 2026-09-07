@@ -27,7 +27,7 @@ describe('互動元件', () => {
     await time(2300);
     expect(screen.getByRole('button', { name: '繼續' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: '繼續' }));
-    await time(13000);
+    await time(15000);
     expect(screen.getByText(/Welcome, Dino/)).toBeInTheDocument();
     // The run created the member, and the database shows it.
     expect(screen.getByText('user 42 · Google')).toBeInTheDocument();
@@ -39,7 +39,7 @@ describe('互動元件', () => {
     );
     await time(2300);
     fireEvent.click(screen.getByRole('button', { name: '使用這個帳號' }));
-    await time(13000);
+    await time(15000);
     expect(screen.getByText(/Welcome, Dino/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '重設示範' }));
     expect(
@@ -67,13 +67,38 @@ describe('互動元件', () => {
     );
     await time(2300);
     fireEvent.click(screen.getByRole('button', { name: '繼續' }));
-    for (let i = 0; i < 130; i++) {
+    for (let i = 0; i < 150; i++) {
       await time(100);
       expect(detail(), `${i * 100}ms 之後`).not.toBe('');
     }
     expect(screen.getByText(/Welcome, Dino/)).toBeInTheDocument();
     // What the backend checked stays on the card for the rest of the lesson.
     expect(detail()).toContain('還在有效期內');
+  });
+  it('停在同意畫面等你決定時，取消跟繼續一起浮在遮罩上', async () => {
+    vi.useFakeTimers({
+      toFake: [
+        'setTimeout',
+        'clearTimeout',
+        'requestAnimationFrame',
+        'cancelAnimationFrame',
+        'performance',
+      ],
+    });
+    render(<AuthDemo />);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Continue with Google' }),
+    );
+    await time(2300);
+    // The scrim is up: this gate is asking the viewer to answer it.
+    expect(document.querySelector(`.${css.spotlight}`)).not.toBeNull();
+    // Saying no is one of the two answers, so it is not left under the scrim.
+    expect(screen.getByRole('button', { name: '取消' }).className).toContain(
+      css.lift,
+    );
+    expect(screen.getByRole('button', { name: '繼續' }).className).toContain(
+      css.cta,
+    );
   });
   it('在資料檢查時凍結畫面，關閉後接著跑', async () => {
     vi.useFakeTimers({
