@@ -49,6 +49,7 @@ import {
   type FlowState,
   type InspectId,
   type NodeId,
+  type Side,
   type Snapshot,
 } from './flow';
 import { useFlow, type Playback } from './useFlow';
@@ -511,34 +512,48 @@ function SystemMap({
                   <strong>Backend</strong>
                   <ArrowUpRight size={14} />
                 </div>
-                {/* Sized like the database's table so the two cards match; it
-                    is where the steps with nothing moving show their work. */}
+                <div className={s.nodeStatus}>
+                  <span />
+                  {backendStatus}
+                </div>
+                {/* Sized like the database's table so the two cards match.
+                    It says what the backend is holding, and it always says
+                    something: an empty box beside a filled one reads as a
+                    card that failed to render rather than a card with
+                    nothing in it yet. The thresholds only apply on the step
+                    that narrates them; later steps show the finished list. */}
                 <div className={s.nodeDetail}>
-                  {stage === S.codeHeld &&
+                  {stage < S.codeHeld && (
+                    <span className={s.detailEmpty}>
+                      <span className={s.factDot} />
+                      尚未收到任何憑證
+                    </span>
+                  )}
+                  {stage >= S.codeHeld &&
+                    stage < S.verify &&
                     codeFacts.map(([label, at]) => (
-                      <span key={label} className={beat(progress, at)}>
-                        <span className={s.factDot} />
-                        {label}
-                      </span>
-                    ))}
-                  {(stage === S.verify || stage === S.verified) &&
-                    tokenChecks.map(([label, at]) => (
                       <span
                         key={label}
                         className={beat(
                           progress,
-                          stage === S.verified ? 0 : at,
+                          stage === S.codeHeld ? at : 0,
                         )}
-                        data-checked={stage === S.verified || progress >= at}
+                      >
+                        <span className={s.factDot} />
+                        {label}
+                      </span>
+                    ))}
+                  {stage >= S.verify &&
+                    tokenChecks.map(([label, at]) => (
+                      <span
+                        key={label}
+                        className={beat(progress, stage === S.verify ? at : 0)}
+                        data-checked={stage > S.verify || progress >= at}
                       >
                         <Check size={12} />
                         {label}
                       </span>
                     ))}
-                </div>
-                <div className={s.nodeStatus}>
-                  <span />
-                  {backendStatus}
                 </div>
               </button>
               <div className={s.receiptSlot} ref={anchor('backend.receipt')}>
@@ -573,6 +588,10 @@ function SystemMap({
                   <strong>Users DB</strong>
                   <ArrowUpRight size={14} />
                 </div>
+                <div className={s.nodeStatus}>
+                  <span />
+                  {dbStatus}
+                </div>
                 <div className={s.databasePreview} ref={anchor('db')}>
                   {member ? (
                     <>
@@ -597,10 +616,6 @@ function SystemMap({
                       </div>
                     </>
                   )}
-                </div>
-                <div className={s.nodeStatus}>
-                  <span />
-                  {dbStatus}
                 </div>
               </button>
               <div className={s.receiptSlot}>
@@ -723,7 +738,8 @@ function DataFlow({
   const [reduced, setReduced] = useState(false);
   const step = steps[view.stage];
   const from = step.route?.[0],
-    to = step.route?.[1];
+    to = step.route?.[1],
+    sides = step.sides;
   useEffect(() => {
     const mq = matchMedia('(prefers-reduced-motion: reduce)');
     const update = () => setReduced(mq.matches);
@@ -744,25 +760,55 @@ function DataFlow({
       const parent = area.current.getBoundingClientRect();
       const a = source.getBoundingClientRect();
       const b = sink.getBoundingClientRect();
-      const ac = { x: a.left + a.width / 2, y: a.top + a.height / 2 },
-        bc = { x: b.left + b.width / 2, y: b.top + b.height / 2 };
-      const horizontal = Math.abs(ac.x - bc.x) > Math.abs(ac.y - bc.y);
-      let x1 = ac.x - parent.left,
-        y1 = ac.y - parent.top,
-        x2 = bc.x - parent.left,
-        y2 = bc.y - parent.top;
-      if (horizontal) {
-        const sign = Math.sign(x2 - x1);
-        x1 += (sign * a.width) / 2;
-        x2 -= (sign * b.width) / 2;
-      } else {
-        const sign = Math.sign(y2 - y1);
-        y1 += (sign * a.height) / 2;
-        y2 -= (sign * b.height) / 2;
-      }
-      const path = horizontal
-        ? `M ${x1} ${y1} C ${(x1 + x2) / 2} ${y1}, ${(x1 + x2) / 2} ${y2}, ${x2} ${y2}`
-        : `M ${x1} ${y1} C ${x1} ${(y1 + y2) / 2}, ${x2} ${(y1 + y2) / 2}, ${x2} ${y2}`;
+      const dx = b.left + b.width / 2 - (a.left + a.width / 2);
+      const dy = b.top + b.height / 2 - (a.top + a.height / 2);
+      // Unless the step names its edges, the leg leaves and arrives on the axis
+      // it travels furthest along.
+      const [sideA, sideB]: [Side, Side] =
+        sides ??
+        (Math.abs(dx) > Math.abs(dy)
+          ? dx > 0
+            ? ['right', 'left']
+            : ['left', 'right']
+          : dy > 0
+            ? ['bottom', 'top']
+            : ['top', 'bottom']);
+      const edge = (r: DOMRect, side: Side) => ({
+        x:
+          (side === 'left'
+            ? r.left
+            : side === 'right'
+              ? r.right
+              : r.left + r.width / 2) - parent.left,
+        y:
+          (side === 'top'
+            ? r.top
+            : side === 'bottom'
+              ? r.bottom
+              : r.top + r.height / 2) - parent.top,
+      });
+      const normal = (side: Side) => ({
+        x: side === 'left' ? -1 : side === 'right' ? 1 : 0,
+        y: side === 'top' ? -1 : side === 'bottom' ? 1 : 0,
+      });
+      const p1 = edge(a, sideA),
+        p2 = edge(b, sideB);
+      const ex = p2.x - p1.x,
+        ey = p2.y - p1.y;
+      // Each end leaves along its own edge's normal. Half the travel on that
+      // axis redraws the plain side-to-side legs exactly as they were; the
+      // floor is what bows a leg whose two ends face the same way, capped so
+      // the arc cannot climb out of the board and get clipped.
+      const reach = Math.min(Math.hypot(ex, ey) * 0.34, 56);
+      const pull = (n: { x: number; y: number }) =>
+        Math.max(Math.abs(ex * n.x + ey * n.y) / 2, reach);
+      const na = normal(sideA),
+        nb = normal(sideB);
+      const pa = pull(na),
+        pb = pull(nb);
+      const path =
+        `M ${p1.x} ${p1.y} C ${p1.x + na.x * pa} ${p1.y + na.y * pa},` +
+        ` ${p2.x + nb.x * pb} ${p2.y + nb.y * pb}, ${p2.x} ${p2.y}`;
       setGeometry({ width: parent.width, height: parent.height, path });
     };
     const observer = new ResizeObserver(measure);
@@ -775,7 +821,7 @@ function DataFlow({
     }
     measure();
     return () => observer.disconnect();
-  }, [from, to, area, refs, anchors, version, view.stage]);
+  }, [from, to, sides, area, refs, anchors, version, view.stage]);
   useLayoutEffect(() => {
     const path = pathRef.current;
     if (path && typeof path.getTotalLength === 'function') {

@@ -48,6 +48,8 @@ export type StageId =
   | 'create'
   | 'session'
   | 'done';
+/** Which edge of an anchor a leg leaves from or arrives at. */
+export type Side = 'top' | 'bottom' | 'left' | 'right';
 export interface Step {
   /** Stable name for this step. Every comparison in the app goes through S,
    *  so inserting a step here never silently shifts anyone else's meaning. */
@@ -60,6 +62,8 @@ export interface Step {
   duration: number;
   active: NodeId[];
   route?: [AnchorId, AnchorId];
+  /** Pins the leg to particular edges; without it the longer axis picks them. */
+  sides?: [Side, Side];
   packet?: 'request' | 'code' | 'token';
   /** Overrides the packet's own name when this leg carries something else. */
   packetLabel?: string;
@@ -187,7 +191,11 @@ export const steps: Step[] = [
     scene: 4,
     duration: 700,
     active: ['backend', 'google'],
+    // Down out of the backend and in through the top of the credential row:
+    // the two cards sit one above the other, so a side-to-side leg would have
+    // to travel back up and read as a detour.
     route: ['backend.receipt', 'google.token'],
+    sides: ['bottom', 'top'],
     packet: 'code',
   },
   {
@@ -200,6 +208,7 @@ export const steps: Step[] = [
     duration: 700,
     active: ['google', 'backend'],
     route: ['google.token', 'backend.receipt'],
+    sides: ['top', 'bottom'],
     packet: 'token',
   },
   {
@@ -231,7 +240,10 @@ export const steps: Step[] = [
     scene: 5,
     duration: 700,
     active: ['backend', 'db'],
+    // Over the top of both cards rather than through the gap between them, so
+    // the query arcs above the row instead of cutting across the two bodies.
     route: ['backend', 'db'],
+    sides: ['top', 'top'],
   },
   {
     id: 'lookupResult',

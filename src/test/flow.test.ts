@@ -122,6 +122,12 @@ describe('Google 登入教學狀態機', () => {
     // travels on the step after it.
     expect(steps[S.back].route).toBeUndefined();
     expect(steps[S.codeBack].route).toEqual(['google.auth', 'browser.screen']);
+    // Backend and Google sit one above the other, so that pair connects
+    // bottom-to-top; Backend and the DB sit side by side, so their leg arcs
+    // over both tops instead of cutting through the gap.
+    expect(steps[S.exchange].sides).toEqual(['bottom', 'top']);
+    expect(steps[S.tokenBack].sides).toEqual(['top', 'bottom']);
+    expect(steps[S.lookup].sides).toEqual(['top', 'top']);
   });
   it('取消不建立會員或取得憑證，保留取消紀錄並可重試', () => {
     const state = reducer(runUntil(start(), S.consent), { type: 'CANCEL' });

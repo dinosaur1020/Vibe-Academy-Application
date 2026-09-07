@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthDemo } from '../AuthDemo';
+import css from '../AuthDemo.module.css';
 afterEach(() => vi.useRealTimers());
 async function time(ms: number) {
   for (let i = 0; i < ms; i += 100)
@@ -45,6 +46,34 @@ describe('互動元件', () => {
       screen.getByRole('button', { name: 'Continue with Google' }),
     ).toBeEnabled();
     expect(screen.queryByText('user 42 · Google')).not.toBeInTheDocument();
+  });
+  it('Backend 卡片中間那格從頭到尾都有東西，不會空著一個洞', async () => {
+    vi.useFakeTimers({
+      toFake: [
+        'setTimeout',
+        'clearTimeout',
+        'requestAnimationFrame',
+        'cancelAnimationFrame',
+        'performance',
+      ],
+    });
+    render(<AuthDemo />);
+    const detail = () =>
+      document.querySelector(`.${css.nodeDetail}`)?.textContent?.trim() ?? '';
+    // Next to the database's table, an empty box reads as a broken card.
+    expect(detail()).toBe('尚未收到任何憑證');
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Continue with Google' }),
+    );
+    await time(2300);
+    fireEvent.click(screen.getByRole('button', { name: '繼續' }));
+    for (let i = 0; i < 130; i++) {
+      await time(100);
+      expect(detail(), `${i * 100}ms 之後`).not.toBe('');
+    }
+    expect(screen.getByText(/Welcome, Dino/)).toBeInTheDocument();
+    // What the backend checked stays on the card for the rest of the lesson.
+    expect(detail()).toContain('還在有效期內');
   });
   it('在資料檢查時凍結畫面，關閉後接著跑', async () => {
     vi.useFakeTimers({
