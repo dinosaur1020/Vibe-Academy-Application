@@ -9,8 +9,6 @@ export interface Step {
   active: NodeId[];
   route?: [NodeId, NodeId];
   packet?: 'request' | 'code' | 'token';
-  event?: string;
-  direction?: string;
 }
 export const steps: Step[] = [
   {
@@ -36,8 +34,6 @@ export const steps: Step[] = [
     scene: 1,
     duration: 600,
     active: ['backend'],
-    event: '開始 Google 登入',
-    direction: '瀏覽器 → Backend',
   },
   {
     title: '瀏覽器前往 Google',
@@ -56,8 +52,6 @@ export const steps: Step[] = [
     scene: 2,
     duration: 0,
     active: ['google'],
-    event: '已前往 Google',
-    direction: '瀏覽器 → Google',
   },
   {
     title: 'Google 已確認，My App 還沒登入',
@@ -66,8 +60,6 @@ export const steps: Step[] = [
     scene: 2,
     duration: 2000,
     active: ['google'],
-    event: 'Google 帳號身份已確認',
-    direction: 'Google · Dino',
   },
   {
     title: 'Google 讓瀏覽器帶回一次性代碼',
@@ -96,8 +88,6 @@ export const steps: Step[] = [
     scene: 3,
     duration: 2000,
     active: ['backend'],
-    event: '收到一次性代碼',
-    direction: 'Google → 瀏覽器 → Backend',
   },
   {
     title: 'Backend 用 Code 交換身分憑證',
@@ -118,8 +108,6 @@ export const steps: Step[] = [
     active: ['google', 'backend'],
     route: ['google', 'backend'],
     packet: 'token',
-    event: '已交換一次性代碼',
-    direction: 'Backend → Google',
   },
   {
     title: 'Backend 正在驗證身分憑證',
@@ -128,8 +116,6 @@ export const steps: Step[] = [
     scene: 4,
     duration: 600,
     active: ['backend'],
-    event: '收到身分憑證 ID Token',
-    direction: 'Google → Backend',
   },
   {
     title: '身份已確認，接著找自己的會員',
@@ -138,8 +124,6 @@ export const steps: Step[] = [
     scene: 4,
     duration: 600,
     active: ['backend'],
-    event: '身分憑證驗證完成',
-    direction: 'Backend · Dino',
   },
   {
     title: '這個 Google 身份有會員了嗎？',
@@ -156,8 +140,6 @@ export const steps: Step[] = [
     scene: 5,
     duration: 600,
     active: ['db'],
-    event: '查詢會員完成',
-    direction: 'Backend → Users DB',
   },
   {
     title: '第一次登入，也可以完成註冊',
@@ -175,8 +157,6 @@ export const steps: Step[] = [
     duration: 700,
     active: ['backend', 'browser'],
     route: ['backend', 'browser'],
-    event: '會員已就緒',
-    direction: 'Users DB → Backend',
   },
   {
     title: 'Google 身份，對應到你的 App 會員',
@@ -185,8 +165,6 @@ export const steps: Step[] = [
     scene: 5,
     duration: 0,
     active: ['browser'],
-    event: 'My App 登入完成',
-    direction: 'Backend → 瀏覽器',
   },
 ];
 export const sceneNames = [
@@ -203,19 +181,30 @@ export interface Snapshot {
   run: number;
   elapsed: number;
 }
-export interface LogEntry {
-  id: number;
-  title: string;
-  direction: string;
-  snapshot: Snapshot;
-}
+/**
+ * Two pointers, deliberately not the same one. The Snapshot half is the view:
+ * what the scene is showing. `audio` is where the narration is, and only the
+ * narration moves it — pressing something on the phone drives the view alone.
+ * Whenever the narration enters a segment it takes the view back with it.
+ */
 export interface FlowState extends Snapshot {
   paused: boolean;
+  /** The step the narration is on. Feeds the clip and the progress bar. */
+  audio: number;
+  audioElapsed: number;
+  /** The clip ended on a gate the viewer has not cleared, so narration waits. */
+  held: boolean;
+  /**
+   * Whether narration is actually going to drive. When it is not — no audio
+   * support, a clip that will not decode — the two pointers stay together and
+   * the lesson behaves as it always did.
+   */
+  narrating: boolean;
+  /** The viewer set the view running; the next segment change takes it back. */
+  hand: boolean;
   /** Set while the cancel narration plays, so stage 0 uses its own cue. */
   justCancelled: boolean;
   inspector: InspectId | null;
-  review: number | null;
-  logs: LogEntry[];
 }
 export type Action =
   | {
@@ -226,16 +215,16 @@ export type Action =
         | 'PAUSE'
         | 'PLAY'
         | 'CLOSE'
-        | 'LIVE'
         | 'LOGOUT'
         | 'RESET';
     }
+  /** TICK moves the view; CLOCK and ADVANCE move the narration. */
   | { type: 'TICK'; delta: number; run: number; stage: number }
   | { type: 'CLOCK'; elapsed: number; run: number; stage: number }
   | { type: 'ADVANCE'; run: number; stage: number }
   | { type: 'SEEK'; stage: number; offset: number }
   | { type: 'INSPECT'; target: InspectId }
-  | { type: 'REVIEW'; index: number };
+  | { type: 'NARRATING'; on: boolean };
 export function initialState(run = 0): FlowState {
   return {
     stage: 0,
@@ -244,147 +233,149 @@ export function initialState(run = 0): FlowState {
     run,
     elapsed: 0,
     paused: false,
+    audio: 0,
+    audioElapsed: 0,
+    held: false,
+    narrating: false,
+    hand: false,
     justCancelled: false,
     inspector: null,
-    review: null,
-    logs: [],
   };
 }
+/** Moves the view onto a step. */
 function enter(state: FlowState, stage: number): FlowState {
-  const next = {
+  return {
     ...state,
     stage,
     elapsed: 0,
     member: state.member || (stage === 16 && state.stage === 15),
+    // With nothing narrating, there is only one pointer to speak of.
+    ...(state.narrating ? null : { audio: stage, audioElapsed: 0 }),
   };
-  const step = steps[stage];
-  if (step.event) {
-    let title = step.event;
-    if (stage === 14)
-      title = state.member ? '找到既有會員 user 42' : '尚無對應的 App 會員';
-    if (stage === 16)
-      title = state.returning ? '使用既有會員 user 42' : '建立會員 user 42';
-    const snapshot: Snapshot = {
-      stage,
-      member: next.member,
-      returning: next.returning,
-      run: next.run,
-      elapsed: 0,
-    };
-    next.logs = [
-      ...state.logs,
-      { id: state.logs.length, title, direction: step.direction!, snapshot },
-    ];
-  }
-  return next;
+}
+/** The narration enters a step and takes the view with it, panel and all. */
+function narrate(state: FlowState, stage: number): FlowState {
+  return {
+    ...enter({ ...state, hand: false, inspector: null }, stage),
+    audio: stage,
+    audioElapsed: 0,
+    held: false,
+  };
+}
+/** Where the narration goes next; the branch depends only on which run it is. */
+function nextAudio(state: FlowState): number {
+  return state.audio === 14 && state.returning ? 16 : state.audio + 1;
+}
+/**
+ * A gate holds the narration until the viewer clears it on the phone. Pressing
+ * the button never moves the narration itself — it only lifts this hold.
+ */
+function release(state: FlowState): FlowState {
+  return state.held && state.stage > state.audio
+    ? narrate(state, nextAudio(state))
+    : state;
 }
 export function reducer(state: FlowState, action: Action): FlowState {
   switch (action.type) {
     case 'START':
-      return state.stage === 0 && state.review === null && !state.inspector
-        ? enter(
-            {
-              ...state,
-              run: state.run + 1,
-              paused: false,
-              justCancelled: false,
-            },
-            1,
+      return state.stage === 0 && !state.inspector
+        ? release(
+            enter(
+              {
+                ...state,
+                run: state.run + 1,
+                hand: true,
+                justCancelled: false,
+              },
+              1,
+            ),
           )
         : state;
     case 'CONTINUE':
-      return state.stage === 4 && state.review === null && !state.inspector
-        ? enter({ ...state, paused: false }, 5)
+      return state.stage === 4 && !state.inspector
+        ? release(enter({ ...state, hand: true }, 5))
         : state;
+    // Cancelling abandons the run rather than nudging the view, so the
+    // narration goes back to the start with it and picks up its own cue.
     case 'CANCEL':
-      return state.stage === 4 && state.review === null
-        ? {
-            ...state,
-            stage: 0,
-            elapsed: 0,
-            paused: false,
-            justCancelled: true,
-            inspector: null,
-            logs: [
-              ...state.logs,
-              {
-                id: state.logs.length,
-                title: '已取消 Google 登入',
-                direction: '返回 My App · 未建立會員',
-                snapshot: {
-                  stage: 0,
-                  member: state.member,
-                  returning: state.returning,
-                  run: state.run,
-                  elapsed: 0,
-                },
-              },
-            ],
-          }
+      return state.stage === 4
+        ? narrate({ ...state, justCancelled: true }, 0)
         : state;
     case 'TICK': {
+      // The view's own clock: it only runs while the viewer is driving.
       if (
         action.run !== state.run ||
         action.stage !== state.stage ||
-        state.paused ||
         state.inspector ||
-        state.review !== null ||
-        !steps[state.stage].duration
+        !steps[state.stage].duration ||
+        // Off the viewer's hand the scene moves only for narration, and only
+        // while nothing has frozen it.
+        (!state.hand && (state.narrating || state.paused))
       )
         return state;
       const elapsed = state.elapsed + Math.max(0, action.delta);
-      if (elapsed < steps[state.stage].duration) return { ...state, elapsed };
-      return enter(state, nextStage(state));
+      if (elapsed < steps[state.stage].duration)
+        return release({ ...state, elapsed });
+      return release(enter(state, nextStage(state)));
     }
     case 'CLOCK':
       return action.run !== state.run ||
-        action.stage !== state.stage ||
-        state.paused ||
-        state.inspector ||
-        state.review !== null
+        action.stage !== state.audio ||
+        state.paused
         ? state
-        : { ...state, elapsed: action.elapsed };
+        : { ...state, audioElapsed: action.elapsed };
     case 'ADVANCE':
-      return action.run !== state.run ||
-        action.stage !== state.stage ||
-        state.review !== null ||
-        isGate(state.stage)
-        ? state
-        : enter(state, nextStage(state));
+      if (action.run !== state.run || action.stage !== state.audio)
+        return state;
+      // Nothing follows the last step, and a gate waits for the viewer.
+      return state.audio >= 17 ||
+        (isStop(state.audio) && state.stage <= state.audio)
+        ? { ...state, held: true }
+        : narrate(state, nextAudio(state));
     case 'SEEK': {
       const target = stateAtStage(state, action.stage);
-      return { ...target, elapsed: action.offset, paused: state.paused };
+      return {
+        ...target,
+        elapsed: action.offset,
+        audioElapsed: action.offset,
+        paused: state.paused,
+        hand: false,
+      };
     }
+    // Pausing stops everything; a press afterwards starts the scene again on
+    // its own, and leaves the narration where it was.
     case 'PAUSE':
-      return { ...state, paused: true };
+      return { ...state, paused: true, hand: false };
+    // Asking for the narration back also hands it the view.
     case 'PLAY':
-      return state.review === null && !state.inspector
-        ? { ...state, paused: false }
-        : state;
+      return state.narrating
+        ? enter(
+            { ...state, paused: false, hand: false, inspector: null },
+            state.audio,
+          )
+        : { ...state, paused: false, hand: false };
+    case 'NARRATING':
+      return state.narrating === action.on
+        ? state
+        : { ...state, narrating: action.on, audio: state.stage, held: false };
     case 'INSPECT':
-      return { ...state, inspector: action.target, paused: true };
+      return { ...state, inspector: action.target };
     case 'CLOSE':
-      return { ...state, inspector: null, paused: true };
-    case 'REVIEW':
-      return state.logs[action.index]
-        ? { ...state, review: action.index, paused: true, inspector: null }
-        : state;
-    case 'LIVE':
-      return { ...state, review: null, inspector: null, paused: true };
+      return { ...state, inspector: null };
+    // Whether narration drives is a fact about the browser, not about the run,
+    // so starting over must not quietly relink the two pointers.
     case 'LOGOUT':
-      return state.stage === 17 && state.review === null
+      return state.stage === 17
         ? {
             ...initialState(state.run + 1),
             member: state.member,
             returning: state.member,
+            narrating: state.narrating,
           }
         : state;
     case 'RESET':
-      return initialState(state.run + 1);
+      return { ...initialState(state.run + 1), narrating: state.narrating };
   }
-}
-export function viewOf(state: FlowState): Snapshot {
-  return state.review === null ? state : state.logs[state.review].snapshot;
 }
 export function captionFor(view: Snapshot): string {
   if (view.stage === 14)
@@ -400,9 +391,22 @@ export function captionFor(view: Snapshot): string {
 export function isGate(stage: number): boolean {
   return !steps[stage].duration;
 }
-/** True while the demo is parked waiting for the viewer to press something. */
+/**
+ * A gate the viewer has to clear themselves. The last stage is a gate too, but
+ * it is the end of the lesson: nothing to press, and nothing to scrub past.
+ */
+export function isStop(stage: number): boolean {
+  return isGate(stage) && stage !== 17;
+}
+/**
+ * True while the demo is parked waiting for the viewer. With narration that is
+ * the moment its clip runs out on a gate; without, simply standing on one.
+ */
 export function isWaiting(state: FlowState): boolean {
-  return isGate(state.stage) && state.review === null && !state.inspector;
+  return (
+    !state.inspector &&
+    (state.narrating ? state.held && isStop(state.audio) : isStop(state.stage))
+  );
 }
 function nextStage(state: FlowState): number {
   return state.stage === 14 && state.member ? 16 : state.stage + 1;
@@ -488,7 +492,7 @@ export function totalMs(timeline: Segment[]): number {
 
 /**
  * Rebuilds the run at an arbitrary stage by replaying enter() along the
- * deterministic path, so seeking produces exactly the logs live playback would.
+ * deterministic path, so seeking lands on exactly what playing there would.
  */
 export function stateAtStage(base: FlowState, target: number): FlowState {
   let state: FlowState = {
@@ -498,7 +502,14 @@ export function stateAtStage(base: FlowState, target: number): FlowState {
   };
   while (state.stage !== target && state.stage < 17)
     state = enter(state, nextStage(state));
-  return { ...state, paused: base.paused, inspector: null, review: null };
+  // Seeking is a narration gesture: both pointers land together.
+  return {
+    ...state,
+    paused: base.paused,
+    narrating: base.narrating,
+    audio: state.stage,
+    inspector: null,
+  };
 }
 
 /**

@@ -9,7 +9,7 @@ async function time(ms: number) {
     });
 }
 describe('互動元件', () => {
-  it('由實際按鈕完成首次登入與再次登入', async () => {
+  it('由實際按鈕完成首次登入，再由登出走一次已有帳號的情境', async () => {
     vi.useFakeTimers({
       toFake: [
         'setTimeout',
@@ -28,22 +28,25 @@ describe('互動元件', () => {
     fireEvent.click(screen.getByRole('button', { name: '繼續' }));
     await time(13000);
     expect(screen.getByText(/Welcome, Dino/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '登出，再試一次' }));
+    // The run created the member, and the database shows it.
+    expect(screen.getByText('user 42 · Google')).toBeInTheDocument();
+    // Logging out is the way into the second scenario: the member now exists,
+    // which the consent screen says by offering the account rather than a list.
+    fireEvent.click(screen.getByRole('button', { name: /登出/ }));
     fireEvent.click(
       screen.getByRole('button', { name: 'Continue with Google' }),
     );
     await time(2300);
     fireEvent.click(screen.getByRole('button', { name: '使用這個帳號' }));
     await time(13000);
-    expect(screen.getByText('找到既有會員 user 42')).toBeInTheDocument();
-    expect(screen.queryByText('建立會員 user 42')).not.toBeInTheDocument();
+    expect(screen.getByText(/Welcome, Dino/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '重設示範' }));
     expect(
       screen.getByRole('button', { name: 'Continue with Google' }),
     ).toBeEnabled();
-    expect(screen.queryByText('找到既有會員 user 42')).not.toBeInTheDocument();
+    expect(screen.queryByText('user 42 · Google')).not.toBeInTheDocument();
   });
-  it('在資料檢查時鎖住操作，關閉後不自動播放', async () => {
+  it('在資料檢查時凍結畫面，關閉後接著跑', async () => {
     vi.useFakeTimers({
       toFake: [
         'setTimeout',
@@ -61,43 +64,12 @@ describe('互動元件', () => {
     fireEvent.click(screen.getByRole('button', { name: '檢查 Backend 狀態' }));
     expect(screen.getAllByText('尚未收到')).toHaveLength(2);
     await time(6000);
+    // Frozen while the panel is open, however much time passes.
     expect(
       screen.queryByRole('button', { name: '繼續' }),
     ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '關閉資料檢查' }));
-    expect(screen.getByRole('button', { name: '繼續播放' })).toBeEnabled();
-    await time(3000);
-    expect(
-      screen.queryByRole('button', { name: '繼續' }),
-    ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '繼續播放' }));
     await time(2300);
-    expect(screen.getByRole('button', { name: '繼續' })).toBeEnabled();
-  });
-  it('檢查資料時仍可直接按播放繼續，不必先關面板', async () => {
-    vi.useFakeTimers({
-      toFake: [
-        'setTimeout',
-        'clearTimeout',
-        'requestAnimationFrame',
-        'cancelAnimationFrame',
-        'performance',
-      ],
-    });
-    render(<AuthDemo />);
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Continue with Google' }),
-    );
-    await time(300);
-    fireEvent.click(screen.getByRole('button', { name: '檢查 Backend 狀態' }));
-    const play = screen.getByRole('button', { name: '繼續播放' });
-    expect(play).toBeEnabled();
-    fireEvent.click(play);
-    await time(100);
-    expect(
-      screen.queryByRole('button', { name: '關閉資料檢查' }),
-    ).not.toBeInTheDocument();
-    await time(2500);
     expect(screen.getByRole('button', { name: '繼續' })).toBeEnabled();
   });
   it('背景分頁暫停，返回後須主動續行', async () => {

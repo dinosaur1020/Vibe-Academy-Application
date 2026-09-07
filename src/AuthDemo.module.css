@@ -359,12 +359,6 @@ h1 {
   box-shadow: 0 0 0 3px #8b5cf629;
   animation: ctaPulse 2.2s ease-out infinite;
 }
-/* A borderless button needs its own surface to read as lifted out of the dim. */
-.logoutButton.cta {
-  background: #fff;
-  border-radius: 8px;
-  padding: 8px 13px;
-}
 @keyframes ctaPulse {
   0% {
     box-shadow: 0 0 0 0 #8b5cf666;
@@ -749,44 +743,6 @@ h1 {
   margin-left: auto;
   color: #62718b;
 }
-.nodeSubtitle {
-  display: block;
-  color: #8190a7;
-  font-size: 12px;
-  margin: 4px 0 0 24px;
-}
-.rack {
-  padding: 7px 0 4px;
-  display: grid;
-  gap: 5px;
-}
-.rack > div {
-  height: 18px;
-  border: 1px solid #2b3850;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  padding: 0 8px;
-  gap: 4px;
-  background: #101b2d;
-}
-.rack i {
-  width: 34px;
-  height: 3px;
-  background: #334159;
-  border-radius: 3px;
-  margin-right: auto;
-}
-.rack span {
-  height: 4px;
-  width: 4px;
-  background: #3a4b63;
-  border-radius: 50%;
-}
-.activeNode .rack span:last-child {
-  background: #41d6a6;
-  box-shadow: 0 0 5px #41d6a677;
-}
 .nodeStatus {
   font-size: 12px;
   color: #96a4bc;
@@ -1145,17 +1101,49 @@ h1 {
 .playButton {
   border: 0;
   border-radius: 50%;
-  width: 31px;
-  height: 31px;
+  width: 38px;
+  height: 38px;
   background: #252423;
   color: white;
   display: grid;
   place-items: center;
   flex-shrink: 0;
 }
+.playButton:hover {
+  background: #3b3937;
+}
 .playButton:disabled {
   background: #f0eff2;
   color: #a5a3ac;
+  opacity: 1;
+}
+/* The circular arrow carries the jump size in its middle, as media players do. */
+.skipButton {
+  position: relative;
+  flex: 0 0 auto;
+  width: 33px;
+  height: 33px;
+  border: 0;
+  border-radius: 50%;
+  background: #f1efeb;
+  color: #46443f;
+  display: grid;
+  place-items: center;
+}
+.skipButton > span {
+  position: absolute;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.3px;
+  font-variant-numeric: tabular-nums;
+}
+.skipButton:hover:not(:disabled) {
+  background: #e6e3dd;
+}
+.skipButton:disabled {
+  background: #f7f6f4;
+  color: #bfbdb7;
   opacity: 1;
 }
 .playbackStatus {
@@ -1191,6 +1179,13 @@ h1 {
   border-radius: 4px;
   background: #e6e6e6;
   touch-action: none;
+  cursor: pointer;
+}
+/* Fat invisible hit area — a 4px track is too thin to grab. */
+.progressTrack::before {
+  content: '';
+  position: absolute;
+  inset: -11px 0;
 }
 .progressTrack > span {
   position: absolute;
@@ -1200,41 +1195,36 @@ h1 {
   border-radius: 4px;
   pointer-events: none;
 }
-/* Everything already narrated, so the unheard remainder reads as locked. */
-.progressHeard {
-  background: #d4d4d6;
-}
 .progressFill {
   background: #252423;
-}
-.seekable {
-  cursor: pointer;
-}
-/* Fat invisible hit area — a 5px track is too thin to grab. */
-.seekable::before {
-  content: '';
-  position: absolute;
-  inset: -10px 0;
 }
 .progressFill::after {
   content: '';
   position: absolute;
-  right: -6px;
+  right: -7px;
   top: 50%;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   transform: translateY(-50%);
   border-radius: 50%;
   background: #252423;
-  transition: transform 0.15s;
+  box-shadow: 0 1px 3px #1a191833;
+  transition: transform 0.14s ease-out;
 }
-.seekable:hover .progressFill::after,
-.seekable:focus-visible .progressFill::after {
-  transform: translateY(-50%) scale(1.18);
+.progressTrack:hover .progressFill::after,
+.progressTrack:focus-visible .progressFill::after {
+  transform: translateY(-50%) scale(1.15);
+}
+.progressTrack[data-scrubbing] {
+  cursor: grabbing;
+}
+.progressTrack[data-scrubbing] .progressFill::after {
+  transform: translateY(-50%) scale(1.3);
+  transition: none;
 }
 .progressTrack:focus-visible {
   outline: 3px solid #598eff;
-  outline-offset: 5px;
+  outline-offset: 7px;
 }
 .rateButton,
 .muteButton {
@@ -1276,110 +1266,6 @@ h1 {
   50% {
     background: #e4dcfd;
   }
-}
-.logSection {
-  margin-top: 16px;
-  /* Clears the fixed playback dock when scrolled into view. */
-  scroll-margin-bottom: 96px;
-}
-.logHeading,
-.logHeading > div {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-.logHeading {
-  justify-content: space-between;
-}
-.logHeading svg {
-  color: #8c95a3;
-}
-.logHeading h3 {
-  font-family: monospace;
-  letter-spacing: 1px;
-  font-size: 12px;
-  margin: 0;
-  color: #667082;
-}
-.logHeading > div > span {
-  font-size: 12px;
-  color: #949ba5;
-  margin-left: 4px;
-}
-.logHeading > span {
-  font-size: 12px;
-  color: #a3a6ad;
-}
-.logList {
-  max-height: 150px;
-  overflow: auto;
-  margin-top: 10px;
-  scrollbar-width: thin;
-  scrollbar-color: #d8d5df transparent;
-}
-.logEmpty {
-  border: 1px dashed #e5e5e9;
-  border-radius: 7px;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 15px 12px;
-  font-size: 12px;
-  color: #9ca2ad;
-  background: #fcfcfd;
-}
-.emptyDot {
-  height: 5px;
-  width: 5px;
-  border: 1px solid #aeb6c2;
-  border-radius: 50%;
-}
-.logEmptyDash {
-  color: #bfc3ca;
-}
-.logEntry {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: none;
-  border: 1px solid transparent;
-  border-bottom-color: #f0eff2;
-  border-radius: 4px;
-  padding: 8px 8px;
-  text-align: left;
-  color: #616f83;
-  font-size: 14px;
-}
-.logEntry:hover {
-  background: #f8f6ff;
-}
-.logEntry strong {
-  font-weight: 500;
-}
-.logEntry > svg:first-of-type {
-  color: #59ae92;
-}
-.logEntry > svg:last-child {
-  margin-left: auto;
-  color: #a3a8b2;
-}
-.logNumber {
-  font-family: monospace;
-  font-size: 12px;
-  color: #a4a5b2;
-}
-.logDirection {
-  margin-left: auto;
-  color: #a1a7b0;
-  font-size: 12px;
-}
-.logEntry .logDirection + svg {
-  margin-left: 0;
-}
-.selectedLog {
-  background: #f5f3ff;
-  border-color: #ddd6fe;
 }
 .pageFooter {
   grid-column: 2;
@@ -1572,16 +1458,23 @@ h1 {
   font-family: monospace;
   font-size: 12px;
 }
+/* An exit at the end of the lesson, deliberately quiet: it must not compete
+   with the Google button for attention on the way in. */
 .logoutButton {
   display: flex;
   align-items: center;
   gap: 6px;
   border: 0;
   background: none;
-  color: #8c829d;
+  color: #9a93a8;
   margin-top: 14px;
   font-size: 12px;
   padding: 8px;
+  text-align: left;
+  line-height: 1.5;
+}
+.logoutButton:hover {
+  color: #6d6580;
 }
 .comparison {
   display: flex;
@@ -1659,31 +1552,6 @@ h1 {
   font-size: 12px;
   overflow-wrap: anywhere;
   text-align: right;
-}
-.returnLive {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid #ddd6fe;
-  border-radius: 7px;
-  background: #f8f6ff;
-  color: #7c3aed;
-  font-size: 12px;
-  padding: 7px 9px;
-}
-.reviewBanner {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: #7c3aed;
-  font-size: 12px;
-  padding: 0 0 14px;
-}
-.reviewBanner > span {
-  margin-left: auto;
-  color: #a297ad;
-  font-size: 12px;
 }
 @media (min-width: 1440px) {
   .page {
@@ -1850,9 +1718,6 @@ h1 {
   .nodeHeading strong,
   .googleNodeHeading strong {
     font-size: 15px;
-  }
-  .nodeSubtitle {
-    font-size: 12px;
   }
   .nodeStatus {
     font-size: 12px;
@@ -2065,10 +1930,6 @@ h1 {
   .nodeHeading > svg:last-child {
     width: 12px;
   }
-  .nodeSubtitle {
-    font-size: 12px;
-    margin-left: 20px;
-  }
   .nodeStatus {
     font-size: 12px;
     min-height: 30px;
@@ -2157,50 +2018,27 @@ h1 {
   }
   .playbackInner {
     min-height: 48px;
-    gap: 9px;
+    gap: 7px;
   }
   .playbackStatus > span {
     font-size: 12px;
   }
+  /* The transport keeps the width it needs; the rest of the dock gives way. */
   .rateButton,
-  .waitingChip {
+  .waitingChip,
+  .dockAvatar {
     display: none;
   }
   .playButton {
-    width: 30px;
-    height: 30px;
+    width: 34px;
+    height: 34px;
   }
-  .logHeading > span {
-    font-size: 12px;
+  .skipButton {
+    width: 29px;
+    height: 29px;
   }
-  .logHeading > div > span {
-    font-size: 12px;
-    margin: 0;
-  }
-  .logHeading {
-    gap: 5px;
-  }
-  .logHeading h3 {
-    font-size: 12px;
-  }
-  .logEmpty {
-    font-size: 12px;
-    padding: 12px 8px;
-  }
-  .logEmptyDash {
-    display: none;
-  }
-  .logEntry {
-    flex-wrap: wrap;
-    gap: 5px;
-    padding: 9px 6px;
-    font-size: 12px;
-  }
-  .logDirection {
-    width: 100%;
-    order: 5;
-    margin-left: 22px;
-    font-size: 12px;
+  .trackRow {
+    gap: 7px;
   }
   .pageFooter {
     flex-direction: column;
@@ -2219,18 +2057,6 @@ h1 {
   .comparison > span,
   .comparison > button {
     font-size: 12px;
-  }
-  .reviewBanner {
-    font-size: 12px;
-    align-items: flex-start;
-    flex-wrap: wrap;
-  }
-  .reviewBanner > span {
-    display: none;
-  }
-  .returnLive {
-    font-size: 12px;
-    padding: 6px;
   }
   .packet {
     font-size: 12px;

@@ -14,7 +14,6 @@ import {
   CheckCheck,
   ChevronRight,
   CircleHelp,
-  Code2,
   Database,
   Fingerprint,
   Info,
@@ -27,6 +26,7 @@ import {
   Volume2,
   VolumeX,
   RotateCcw,
+  RotateCw,
   Search,
   Server,
   ShieldCheck,
@@ -38,10 +38,8 @@ import {
 } from 'lucide-react';
 import {
   captionFor,
-  isWaiting,
   sceneNames,
   steps,
-  viewOf,
   type Action,
   type FlowState,
   type InspectId,
@@ -208,13 +206,15 @@ function PhonePreview({
                 <div className={s.signedIn}>
                   <CheckCheck size={16} /> 已登入 My App <span>user 42</span>
                 </div>
+                {/* An exit, not a call to action: no pulse, no spotlight. It is
+                    how you reach the second scenario, where the member exists. */}
                 <button
-                  className={`${s.logoutButton}${cta}`}
+                  className={s.logoutButton}
                   disabled={locked}
                   onClick={() => dispatch({ type: 'LOGOUT' })}
                 >
                   <LogOut size={15} />
-                  登出，再試一次
+                  登出
                 </button>
               </>
             ) : (
@@ -342,19 +342,6 @@ function SystemMap({
                   <strong>Backend</strong>
                   <ArrowUpRight size={14} />
                 </div>
-                <span className={s.nodeSubtitle}>你的後端</span>
-                <div className={s.rack} aria-hidden="true">
-                  <div>
-                    <i />
-                    <span />
-                    <span />
-                  </div>
-                  <div>
-                    <i />
-                    <span />
-                    <span />
-                  </div>
-                </div>
                 <div className={s.nodeStatus}>
                   <span />
                   {backendStatus}
@@ -392,7 +379,6 @@ function SystemMap({
                   <strong>Users DB</strong>
                   <ArrowUpRight size={14} />
                 </div>
-                <span className={s.nodeSubtitle}>你的會員資料庫</span>
                 <div className={s.databasePreview}>
                   {member ? (
                     <>
@@ -514,14 +500,12 @@ function DataFlow({
   refs,
   area,
   dispatch,
-  reviewing,
   flight,
 }: {
   view: Snapshot;
   refs: Record<NodeId, RefObject<HTMLDivElement | null>>;
   area: RefObject<HTMLDivElement | null>;
   dispatch: Dispatch<Action>;
-  reviewing: boolean;
   flight: number;
 }) {
   const markerId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
@@ -529,8 +513,7 @@ function DataFlow({
   const pathRef = useRef<SVGPathElement>(null);
   const [point, setPoint] = useState({ x: 0, y: 0 });
   const [reduced, setReduced] = useState(false);
-  // Log snapshots show the transfer that just completed, not the next transfer.
-  const step = steps[reviewing ? Math.max(0, view.stage - 1) : view.stage];
+  const step = steps[view.stage];
   const from = step.route?.[0],
     to = step.route?.[1];
   useEffect(() => {
@@ -579,11 +562,11 @@ function DataFlow({
     if (path && typeof path.getTotalLength === 'function') {
       const p = path.getPointAtLength(
         path.getTotalLength() *
-          (reviewing ? 1 : reduced ? 0.5 : Math.min(1, view.elapsed / flight)),
+          (reduced ? 0.5 : Math.min(1, view.elapsed / flight)),
       );
       setPoint({ x: p.x, y: p.y });
     }
-  }, [geometry.path, view.elapsed, reduced, flight, reviewing]);
+  }, [geometry.path, view.elapsed, reduced, flight]);
   if (!step.route || !geometry.path) return null;
   return (
     <div className={s.flowOverlay}>
@@ -642,7 +625,9 @@ function inspection(
     return {
       title: '一次性代碼 · Authorization Code',
       detail:
-        '短效、一次性的兌換憑證。它不是密碼，也不是會員資料；後端還需要拿它向 Google 交換身分憑證。',
+        view.stage >= 9
+          ? '後端正拿它向 Google 交換身分憑證，並附上只有後端知道的密鑰 — 這就是這一步必須在後端做的原因。'
+          : '短效、一次性的兌換憑證。它不是密碼，也不是會員資料；後端還需要拿它向 Google 交換身分憑證。',
       rows: [
         [
           '傳輸路徑',
@@ -650,6 +635,14 @@ function inspection(
         ],
         ['Code', view.stage >= 6 ? code : '尚未收到'],
         ['性質', '短效 · 一次性 · 非密碼'],
+        // The narration teaches the client secret here, so the panel has to
+        // show it — and show that it never leaves the backend.
+        ...(view.stage >= 9
+          ? ([['一併附上', '應用程式密鑰 client_secret · 只存在後端']] as [
+              string,
+              string,
+            ][])
+          : []),
       ],
     };
   if (target === 'token')
@@ -737,6 +730,7 @@ function inspection(
     detail:
       '後端交換並驗證身分憑證，找到或建立自己的會員，最後建立 App 的登入狀態。',
     rows: [
+      ['應用程式密鑰 client_secret', '只存在這裡，不會給瀏覽器'],
       ['一次性代碼', view.stage >= 8 ? code : '尚未收到'],
       [
         'ID Token',
@@ -846,36 +840,49 @@ function PlaybackControls({
   dispatch: Dispatch<Action>;
   playback: Playback;
 }) {
-  const { narration, position, total, unlocked, seekTo, driving } = playback;
+  const { narration, position, total, seekTo, waiting } = playback;
   const trackRef = useRef<HTMLDivElement>(null);
-  const [scrubbing, setScrubbing] = useState(false);
-  const review = state.review !== null;
-  const waiting = isWaiting(state);
+  // While a finger is down the thumb follows it alone. The clock keeps running
+  // underneath, and the seek is committed once, on release — a seek per pointer
+  // move would reload the clip mid-drag and fight the bar for the position.
+  const [scrub, setScrub] = useState<number | null>(null);
+  const scrubRef = useRef<number | null>(null);
+  const at = scrub ?? position;
   const paused = state.paused || narration.blocked;
-  const canSeek = driving && !review && !state.inspector;
-  const label = review
-    ? '正在回看紀錄'
-    : state.inspector
-      ? '已暫停，正在檢查資料'
-      : narration.blocked
-        ? '按播放，開始語音解說'
-        : state.stage === 0
-          ? '等待你開始登入'
-          : state.stage === 4
-            ? '等待你確認 Google 帳號'
-            : state.stage === 17
-              ? '這次登入已完成'
-              : state.paused
-                ? '已暫停 · 按播放繼續'
-                : '解說進行中';
+  // The label speaks for the narration, so it reads the narration pointer.
+  const label = narration.blocked
+    ? '按播放，開始語音解說'
+    : state.paused
+      ? '已暫停 · 按播放繼續'
+      : state.audio === 0
+        ? '等待你開始登入'
+        : state.audio === 4
+          ? '等待你確認 Google 帳號'
+          : state.audio === 17
+            ? '這次登入已完成'
+            : state.hand
+              ? '解說進行中 · 畫面由你操作'
+              : '解說進行中';
 
-  const scrubTo = (clientX: number) => {
-    const track = trackRef.current;
-    if (!track || !total) return;
-    const box = track.getBoundingClientRect();
-    seekTo(((clientX - box.left) / box.width) * total);
+  // Clamped to what the demo will actually honour, so the thumb never runs
+  // somewhere the release would snap it back from.
+  const pointAt = (clientX: number) => {
+    const box = trackRef.current!.getBoundingClientRect();
+    const ratio = box.width ? (clientX - box.left) / box.width : 0;
+    return Math.max(0, Math.min(ratio * total, total));
   };
-  const nudge = (delta: number) => seekTo(position + delta);
+  const pct = (ms: number) => `${total ? (ms / total) * 100 : 0}%`;
+  const nudge = (delta: number) => seekTo(at + delta);
+  // Mirrored in a ref: pointer handlers fire between renders, and a stale
+  // closure here would either drop the drag or seek to it twice.
+  const hold = (ms: number | null) => {
+    scrubRef.current = ms;
+    setScrub(ms);
+  };
+  const release = () => {
+    if (scrubRef.current !== null) seekTo(scrubRef.current);
+    hold(null);
+  };
 
   return (
     <div className={s.playback}>
@@ -889,22 +896,36 @@ function PlaybackControls({
         </span>
         <button
           className={s.playButton}
-          disabled={review}
           aria-label={paused ? '繼續播放' : '暫停流程'}
           onClick={() => {
-            if (state.inspector) {
-              dispatch({ type: 'CLOSE' });
-              dispatch({ type: 'PLAY' });
-            } else if (state.paused) dispatch({ type: 'PLAY' });
+            if (state.paused) dispatch({ type: 'PLAY' });
             else if (narration.blocked) narration.resume();
             else dispatch({ type: 'PAUSE' });
           }}
         >
           {paused ? (
-            <Play size={17} fill="currentColor" />
+            <Play size={18} fill="currentColor" />
           ) : (
-            <Pause size={17} fill="currentColor" />
+            <Pause size={18} fill="currentColor" />
           )}
+        </button>
+        <button
+          className={s.skipButton}
+          aria-label="倒退 10 秒"
+          disabled={at < 500}
+          onClick={() => nudge(-10000)}
+        >
+          <RotateCcw size={19} strokeWidth={1.7} />
+          <span aria-hidden="true">10</span>
+        </button>
+        <button
+          className={s.skipButton}
+          aria-label="快進 10 秒"
+          disabled={total - at < 500}
+          onClick={() => nudge(10000)}
+        >
+          <RotateCw size={19} strokeWidth={1.7} />
+          <span aria-hidden="true">10</span>
         </button>
         <div className={s.playbackStatus}>
           <div className={s.playbackLabel}>
@@ -912,43 +933,42 @@ function PlaybackControls({
             {waiting && <span className={s.waitingChip}>等你操作</span>}
           </div>
           <div className={s.trackRow}>
-            <time className={s.clock}>{formatTime(position)}</time>
+            <time className={s.clock}>{formatTime(at)}</time>
             <div
               ref={trackRef}
-              className={`${s.progressTrack} ${canSeek ? s.seekable : ''}`}
+              className={s.progressTrack}
+              data-scrubbing={scrub !== null || undefined}
               role="slider"
-              tabIndex={canSeek ? 0 : -1}
+              tabIndex={0}
               aria-label="解說進度"
               aria-valuemin={0}
               aria-valuemax={Math.round(total / 1000)}
-              aria-valuenow={Math.round(position / 1000)}
-              aria-valuetext={`${formatTime(position)} / ${formatTime(total)}`}
+              aria-valuenow={Math.round(at / 1000)}
+              aria-valuetext={`${formatTime(at)} / ${formatTime(total)}`}
               onPointerDown={(event) => {
-                if (!canSeek) return;
-                event.currentTarget.setPointerCapture(event.pointerId);
-                setScrubbing(true);
-                scrubTo(event.clientX);
+                // Keeps the drag from selecting the text around the dock; the
+                // track still takes focus so the arrow keys stay available.
+                event.preventDefault();
+                event.currentTarget.focus();
+                event.currentTarget.setPointerCapture?.(event.pointerId);
+                hold(pointAt(event.clientX));
               }}
-              onPointerMove={(event) => scrubbing && scrubTo(event.clientX)}
-              onPointerUp={() => setScrubbing(false)}
-              onPointerCancel={() => setScrubbing(false)}
+              onPointerMove={(event) => {
+                if (scrubRef.current !== null) hold(pointAt(event.clientX));
+              }}
+              onPointerUp={release}
+              onLostPointerCapture={release}
+              onPointerCancel={() => hold(null)}
               onKeyDown={(event) => {
-                if (!canSeek) return;
                 if (event.key === 'ArrowLeft') nudge(-5000);
                 else if (event.key === 'ArrowRight') nudge(5000);
                 else if (event.key === 'Home') seekTo(0);
+                else if (event.key === 'End') seekTo(total);
                 else return;
                 event.preventDefault();
               }}
             >
-              <span
-                className={s.progressHeard}
-                style={{ width: `${total ? (unlocked / total) * 100 : 0}%` }}
-              />
-              <span
-                className={s.progressFill}
-                style={{ width: `${total ? (position / total) * 100 : 0}%` }}
-              />
+              <span className={s.progressFill} style={{ width: pct(at) }} />
             </div>
             <time className={s.clock}>{formatTime(total)}</time>
           </div>
@@ -971,85 +991,13 @@ function PlaybackControls({
         >
           {narration.muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
         </button>
-        {review && (
-          <button
-            className={s.returnLive}
-            onClick={() => dispatch({ type: 'LIVE' })}
-          >
-            回到目前進度
-            <ArrowRight size={14} />
-          </button>
-        )}
       </div>
     </div>
   );
 }
 
-function AuthLog({
-  state,
-  dispatch,
-  sectionRef,
-}: {
-  state: FlowState;
-  dispatch: Dispatch<Action>;
-  sectionRef: RefObject<HTMLElement | null>;
-}) {
-  const listRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (listRef.current)
-      listRef.current.scrollTop = listRef.current.scrollHeight;
-  }, [state.logs.length]);
-  return (
-    <section
-      ref={sectionRef}
-      className={s.logSection}
-      aria-label="系統執行紀錄"
-    >
-      <div className={s.logHeading}>
-        <div>
-          <Code2 size={16} />
-          <h3>AUTH.LOG</h3>
-          <span>系統執行紀錄</span>
-        </div>
-        <span>
-          {state.logs.length ? '點擊紀錄，回看那個時刻' : '每一步，都有跡可循'}
-        </span>
-      </div>
-      <div className={s.logList} ref={listRef}>
-        {!state.logs.length ? (
-          <div className={s.logEmpty}>
-            <span className={s.emptyDot} />
-            <span>
-              按下手機上的登入按鈕，觀察流程
-              <span className={s.logEmptyDash}> — 等待第一個事件</span>
-            </span>
-          </div>
-        ) : (
-          state.logs.map((log, i) => (
-            <button
-              key={log.id}
-              className={`${s.logEntry} ${state.review === i ? s.selectedLog : ''}`}
-              onClick={() => dispatch({ type: 'REVIEW', index: i })}
-              aria-pressed={state.review === i}
-            >
-              <span className={s.logNumber}>
-                {String(i + 1).padStart(2, '0')}
-              </span>
-              <Check size={13} />
-              <strong>{log.title}</strong>
-              <span className={s.logDirection}>{log.direction}</span>
-              <ArrowUpRight size={14} />
-            </button>
-          ))
-        )}
-      </div>
-    </section>
-  );
-}
-
 export function AuthDemo() {
   const { state, dispatch, playback } = useFlow();
-  const view = viewOf(state);
   const area = useRef<HTMLDivElement>(null);
   const browser = useRef<HTMLDivElement>(null),
     backend = useRef<HTMLDivElement>(null),
@@ -1057,19 +1005,8 @@ export function AuthDemo() {
     db = useRef<HTMLDivElement>(null);
   const [refs] = useState(() => ({ browser, backend, google, db }));
   const card = useRef<HTMLElement>(null);
-  const log = useRef<HTMLElement>(null);
-  const waiting = isWaiting(state);
+  const { waiting } = playback;
   const lessonMinutes = Math.max(1, Math.round(playback.total / 60000));
-  // Inspecting something is only useful if the log it feeds is on screen.
-  useEffect(() => {
-    if (!state.inspector) return;
-    log.current?.scrollIntoView?.({
-      behavior: matchMedia('(prefers-reduced-motion: reduce)').matches
-        ? 'auto'
-        : 'smooth',
-      block: 'nearest',
-    });
-  }, [state.inspector]);
   return (
     <>
       <header className={s.siteHeader}>
@@ -1152,18 +1089,18 @@ export function AuthDemo() {
               <li
                 key={name}
                 className={
-                  steps[view.stage].scene === i + 1
+                  steps[state.stage].scene === i + 1
                     ? s.currentScene
-                    : steps[view.stage].scene > i + 1
+                    : steps[state.stage].scene > i + 1
                       ? s.completedScene
                       : ''
                 }
                 aria-current={
-                  steps[view.stage].scene === i + 1 ? 'step' : undefined
+                  steps[state.stage].scene === i + 1 ? 'step' : undefined
                 }
               >
                 <span>
-                  {steps[view.stage].scene > i + 1 ? (
+                  {steps[state.stage].scene > i + 1 ? (
                     <Check size={12} />
                   ) : (
                     `0${i + 1}`
@@ -1176,44 +1113,35 @@ export function AuthDemo() {
           </ol>
           <div className={`${s.experiment}${waiting ? ` ${s.spotlight}` : ''}`}>
             <div className={s.scrim} aria-hidden="true" />
-            {state.review !== null && (
-              <div className={s.reviewBanner}>
-                <RotateCcw size={14} />
-                回看中 · {state.logs[state.review].title}
-                <span>目前流程已暫停</span>
-              </div>
-            )}
             <div className={s.stageArea} ref={area}>
               <PhonePreview
-                view={view}
+                view={state}
                 dispatch={dispatch}
-                locked={state.review !== null || !!state.inspector}
+                locked={!!state.inspector}
                 waiting={waiting}
                 nodeRef={browser}
               />
               <SystemMap
-                view={view}
+                view={state}
                 dispatch={dispatch}
                 refs={refs}
                 paused={state.paused}
               />
               <DataFlow
-                reviewing={state.review !== null}
                 flight={playback.flight}
-                view={view}
+                view={state}
                 refs={refs}
                 area={area}
                 dispatch={dispatch}
               />
             </div>
-            <Inspector state={state} view={view} dispatch={dispatch} />
+            <Inspector state={state} view={state} dispatch={dispatch} />
           </div>
           <PlaybackControls
             state={state}
             dispatch={dispatch}
             playback={playback}
           />
-          <AuthLog state={state} dispatch={dispatch} sectionRef={log} />
         </article>
         <footer className={s.pageFooter}>
           <span>

@@ -18,18 +18,28 @@ function fake(el: HTMLMediaElement) {
   }
   return entry;
 }
+function allow(this: HTMLMediaElement) {
+  fake(this).paused = false;
+  return Promise.resolve();
+}
+// What a browser does with autoplay before the page has had a user gesture.
+function refuse() {
+  return Promise.reject(
+    Object.assign(new Error('autoplay'), { name: 'NotAllowedError' }),
+  );
+}
+const setPlay = (value: () => unknown) =>
+  Object.defineProperty(HTMLMediaElement.prototype, 'play', {
+    configurable: true,
+    value,
+  });
 beforeAll(() => {
   const proto = HTMLMediaElement.prototype;
   const define = (name: string, descriptor: PropertyDescriptor) =>
     Object.defineProperty(proto, name, { configurable: true, ...descriptor });
   define('canPlayType', { value: () => 'maybe' });
   define('load', { value() {} });
-  define('play', {
-    value(this: HTMLMediaElement) {
-      fake(this).paused = false;
-      return Promise.resolve();
-    },
-  });
+  setPlay(allow);
   define('pause', {
     value(this: HTMLMediaElement) {
       fake(this).paused = true;
@@ -48,6 +58,18 @@ beforeAll(() => {
       fake(this).time = value;
     },
   });
+  // A new source rewinds the element, as it does in a browser — the tests below
+  // rely on that to tell "started from the top" from "resumed mid-clip".
+  const src = Object.getOwnPropertyDescriptor(proto, 'src')!;
+  define('src', {
+    get(this: HTMLMediaElement) {
+      return src.get!.call(this);
+    },
+    set(this: HTMLMediaElement, value: string) {
+      fake(this).time = 0;
+      src.set!.call(this, value);
+    },
+  });
   const Native = window.Audio;
   window.Audio = class extends Native {
     constructor() {
@@ -58,6 +80,7 @@ beforeAll(() => {
 });
 afterEach(() => {
   created.length = 0;
+  setPlay(allow);
   vi.useRealTimers();
 });
 async function time(ms: number) {
@@ -90,19 +113,54 @@ const clock = () =>
   [...document.querySelectorAll('time')].map((t) => t.textContent).join(' / ');
 
 describe('音訊驅動', () => {
-  it('旁白播完才前進，計時器不再推動流程', async () => {
+  it('只有旁白播完會推進旁白，計時器推不動它', async () => {
     useTimers();
     render(<AuthDemo />);
     fireEvent.click(
       screen.getByRole('button', { name: 'Continue with Google' }),
     );
-    expect(screen.getByText('My App 收到登入請求')).toBeInTheDocument();
-    // Step 1 lasts 700ms of animation but the clip is seconds long: without
-    // audio ending, nothing may advance no matter how much time passes.
+    // The scene runs ahead by hand, but nothing except 'ended' moves the clip.
     await time(30000);
-    expect(screen.getByText('My App 收到登入請求')).toBeInTheDocument();
+    expect(narrator().src).toContain('/audio/intro.m4a');
     await ends();
-    expect(screen.getByText('後端準備 Google 登入')).toBeInTheDocument();
+    await time(300);
+    expect(narrator().src).toContain('/audio/s1.m4a');
+    // Entering a segment takes the scene back from the viewer.
+    expect(screen.getByText('My App 收到登入請求')).toBeInTheDocument();
+  });
+  it('點畫面不會動到旁白，也不會動到進度條', async () => {
+    useTimers();
+    render(<AuthDemo />);
+    narrator().currentTime = 2;
+    await time(200);
+    const before = clock();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Continue with Google' }),
+    );
+    await time(2500);
+    // The scene walked itself to the consent gate; the dock did not budge.
+    expect(screen.getByRole('button', { name: '繼續' })).toBeEnabled();
+    expect(narrator().src).toContain('/audio/intro.m4a');
+    expect(clock()).toBe(before);
+  });
+  it('旁白進到新段落時，把畫面和資料面板一起收回來', async () => {
+    useTimers();
+    render(<AuthDemo />);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Continue with Google' }),
+    );
+    await time(300);
+    fireEvent.click(screen.getByRole('button', { name: '檢查 Backend 狀態' }));
+    expect(
+      screen.getByRole('button', { name: '關閉資料檢查' }),
+    ).toBeInTheDocument();
+    expect(narrator().paused).toBe(false);
+    await ends();
+    await time(300);
+    expect(
+      screen.queryByRole('button', { name: '關閉資料檢查' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('My App 收到登入請求')).toBeInTheDocument();
   });
   it('等待互動的步驟，旁白播完仍停在原地', async () => {
     useTimers();
@@ -114,6 +172,22 @@ describe('音訊驅動', () => {
     ).toBeEnabled();
     expect(screen.getByText('一顆按鈕，開始一段幕後旅程')).toBeInTheDocument();
   });
+  it('旁白還在講的時候不催促，講完才提示等你操作', async () => {
+    useTimers();
+    render(<AuthDemo />);
+    // The opening screen stays undimmed while the narration explains it.
+    expect(screen.queryByText('等你操作')).not.toBeInTheDocument();
+    await ends();
+    expect(screen.getByText('等你操作')).toBeInTheDocument();
+  });
+  it('自動播放被擋下時，剛進站的畫面不會先暗起來催人', async () => {
+    useTimers();
+    setPlay(refuse);
+    render(<AuthDemo />);
+    await time(300);
+    expect(screen.getByRole('button', { name: '繼續播放' })).toBeEnabled();
+    expect(screen.queryByText('等你操作')).not.toBeInTheDocument();
+  });
   it('進度條走的是音檔時間，並累計成整堂課的進度', async () => {
     useTimers();
     render(<AuthDemo />);
@@ -122,9 +196,14 @@ describe('音訊驅動', () => {
       Math.round(total / 1000) % 60,
     ).padStart(2, '0')}`;
     expect(clock()).toBe(`0:00 / ${mmss}`);
+    narrator().currentTime = 2;
+    await time(200);
+    expect(clock().split(' / ')[0]).toBe('0:02');
     fireEvent.click(
       screen.getByRole('button', { name: 'Continue with Google' }),
     );
+    await ends();
+    await time(300);
     narrator().currentTime = 2;
     await time(200);
     const [minutes, seconds] = clock().split(' / ')[0].split(':');
@@ -132,16 +211,56 @@ describe('音訊驅動', () => {
     // Stage 1 starts after the intro clip, so 2s into it lands well past 0:02.
     expect(position).toBeGreaterThan(8);
   });
-  it('提前點擊會切換到下一段旁白', async () => {
+  it('快進十秒落在後面那一段的中間，接著的一段仍從自己的開頭播', async () => {
     useTimers();
     render(<AuthDemo />);
-    expect(narrator().src).toContain('/audio/intro.m4a');
-    narrator().currentTime = 3;
+    await time(200);
+    fireEvent.click(screen.getByRole('button', { name: '快進 10 秒' }));
+    await time(300);
+    expect(narrator().src).toContain('/audio/s1.m4a');
+    expect(narrator().currentTime).toBeGreaterThan(1);
+    // The offset belonged to the step that was seeked to, not to every step
+    // after it — s2 must open at its first word.
+    await ends();
+    await time(300);
+    expect(narrator().src).toContain('/audio/s2.m4a');
+    expect(narrator().currentTime).toBe(0);
+  });
+  it('進度條不被要按按鈕的節點卡住，可以一路快進到最後', async () => {
+    useTimers();
+    render(<AuthDemo />);
     fireEvent.click(
       screen.getByRole('button', { name: 'Continue with Google' }),
     );
-    await time(400);
-    expect(narrator().src).toContain('/audio/s1.m4a');
+    await time(200);
+    for (let i = 0; i < 20; i++) {
+      const skip: HTMLButtonElement = screen.getByRole('button', {
+        name: '快進 10 秒',
+      });
+      if (skip.disabled) break;
+      fireEvent.click(skip);
+      await time(300);
+    }
+    // Straight through the consent gate without anyone pressing 繼續.
+    expect(screen.getByText(/Welcome, Dino/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '倒退 10 秒' }));
+    await time(300);
+    expect(screen.getByRole('button', { name: '快進 10 秒' })).toBeEnabled();
+  });
+  it('沒在聽旁白的時候，按按鈕直接跑動畫，不等音檔播完', async () => {
+    useTimers();
+    setPlay(refuse);
+    render(<AuthDemo />);
+    await time(200);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Continue with Google' }),
+    );
+    // Steps 1-3 run on their own 700/600/700ms timings — no 'ended' fires here.
+    await time(2500);
+    expect(screen.getByRole('button', { name: '繼續' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: '繼續' }));
+    await time(12000);
+    expect(screen.getByText(/Welcome, Dino/)).toBeInTheDocument();
   });
   it('標題旁的時間泡泡把整堂課倒回開頭', async () => {
     useTimers();
@@ -150,14 +269,15 @@ describe('音訊驅動', () => {
       screen.getByRole('button', { name: 'Continue with Google' }),
     );
     await ends();
-    expect(screen.getByText('後端準備 Google 登入')).toBeInTheDocument();
+    await time(300);
+    expect(screen.getByText('My App 收到登入請求')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /從頭播放解說/ }));
     await time(200);
     expect(screen.getByText('一顆按鈕，開始一段幕後旅程')).toBeInTheDocument();
     expect(clock().split(' / ')[0]).toBe('0:00');
     expect(narrator().src).toContain('/audio/intro.m4a');
   });
-  it('暫停與檢查資料會一起停下旁白', async () => {
+  it('暫停會停下旁白，檢查資料不會', async () => {
     useTimers();
     render(<AuthDemo />);
     fireEvent.click(
@@ -172,6 +292,6 @@ describe('音訊驅動', () => {
     expect(narrator().paused).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: '檢查 Backend 狀態' }));
     await time(100);
-    expect(narrator().paused).toBe(true);
+    expect(narrator().paused).toBe(false);
   });
 });

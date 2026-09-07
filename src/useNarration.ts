@@ -75,6 +75,8 @@ export function useNarration({
   const [muted, setMuted] = useState(false);
   const elementRef = useRef<HTMLAudioElement | null>(null);
   const preloadRef = useRef<HTMLAudioElement | null>(null);
+  /** False between asking for a clip and that clip being on the element. */
+  const readyRef = useRef(false);
   const fadeRef = useRef(0);
   const clockRef = useRef(onClock);
   const endedRef = useRef(onEnded);
@@ -123,7 +125,9 @@ export function useNarration({
     if (!el) return;
     const ended = () => {
       setSpeaking(false);
-      endedRef.current();
+      // A swap still fading out belongs to the clip on its way off; letting its
+      // 'ended' through would advance the narration a step it never played.
+      if (readyRef.current) endedRef.current();
     };
     const broke = () => setFailed(true);
     el.addEventListener('ended', ended);
@@ -141,6 +145,7 @@ export function useNarration({
     const el = ensure();
     if (!el) return;
     cancelAnimationFrame(fadeRef.current);
+    readyRef.current = false;
     if (!src) {
       el.pause();
       setSpeaking(false);
@@ -153,14 +158,20 @@ export function useNarration({
       el.muted = mutedRef.current;
       el.src = src;
       el.playbackRate = rateRef.current;
-      if (offset > 0)
-        el.addEventListener(
-          'loadedmetadata',
-          () => {
-            el.currentTime = offset / 1000;
-          },
-          { once: true },
-        );
+      if (offset > 0) {
+        // Asked twice: before metadata this only records a start position, but
+        // recording it now keeps currentTime — and so the dock — off zero.
+        const cue = () => {
+          el.currentTime = offset / 1000;
+        };
+        try {
+          cue();
+        } catch {
+          /* not seekable yet */
+        }
+        el.addEventListener('loadedmetadata', cue, { once: true });
+      }
+      readyRef.current = true;
       if (activeRef.current) play(el);
     };
     if (!el.paused && el.currentTime > 0.05) {
@@ -191,12 +202,14 @@ export function useNarration({
   }, [active, src, play]);
 
   // The audio element drives every animation: read it, never a wall clock.
+  // While a swap is still fading out the old clip, currentTime belongs to that
+  // clip; reporting it would throw the progress bar back to the previous step.
   useEffect(() => {
     if (!supported || !active || !src) return;
     let frame = 0;
     const read = () => {
       const el = elementRef.current;
-      if (el) clockRef.current(el.currentTime * 1000);
+      if (el && readyRef.current) clockRef.current(el.currentTime * 1000);
       frame = requestAnimationFrame(read);
     };
     frame = requestAnimationFrame(read);

@@ -78,21 +78,22 @@ describe('旁白與流程同步', () => {
     expect(totalMs(first)).toBeLessThanOrEqual(180_000);
     expect(totalMs(again)).toBeLessThanOrEqual(180_000);
   });
-  it('拖曳到任一步驟，重建出的紀錄與實際播放完全相同', () => {
+  it('拖曳到任一步驟，重建出的狀態與實際播到那裡完全相同', () => {
     for (const stage of [1, 5, 8, 14, 16, 17]) {
       const live = runUntil(start(), stage);
       const seeked = reducer(live, { type: 'SEEK', stage, offset: 1200 });
       expect(seeked.stage).toBe(stage);
       expect(seeked.elapsed).toBe(1200);
-      expect(seeked.logs).toEqual(live.logs);
       expect(seeked.member).toBe(live.member);
+      expect(seeked.returning).toBe(live.returning);
     }
   });
   it('往回拖再往前播，仍走到同一個結局', () => {
     const live = runUntil(start(), 16);
     const back = reducer(live, { type: 'SEEK', stage: 8, offset: 0 });
     expect(back.stage).toBe(8);
-    expect(runUntil(back, 17).logs).toEqual(runUntil(live, 17).logs);
+    expect(back.member).toBe(false);
+    expect(runUntil(back, 17).member).toBe(true);
   });
   it('封包飛行時間跟著旁白拉長，但不會慢到停住', () => {
     expect(flightMs(1, undefined)).toBe(steps[1].duration);
@@ -108,7 +109,9 @@ describe('旁白與流程同步', () => {
       run: state.run,
       stage: 5,
     });
-    expect(ticked.elapsed).toBe(3400);
+    // CLOCK belongs to the narration pointer; the scene is not its business.
+    expect(ticked.audioElapsed).toBe(3400);
+    expect(ticked.elapsed).toBe(state.elapsed);
     expect(ticked.stage).toBe(5);
     const paused = reducer(state, { type: 'PAUSE' });
     expect(
