@@ -38,49 +38,20 @@ const rate = Number(flag('rate', script.rate));
 const budget = Number(flag('budget', script.budgetSeconds));
 const lines = script.lines;
 
-// The two paths a viewer can actually hear end to end. Stage 14 branches on
-// whether the member already exists, and a returning member skips stage 15.
-const paths = {
-  首次登入: [
-    'intro',
-    's1',
-    's2',
-    's3',
-    's4',
-    's5',
-    's6',
-    's7',
-    's8',
-    's9',
-    's10',
-    's11',
-    's12',
-    's13',
-    's14-new',
-    's15',
-    's16',
-    's17-first',
-  ],
-  再次登入: [
-    'intro-again',
-    's1',
-    's2',
-    's3',
-    's4',
-    's5',
-    's6',
-    's7',
-    's8',
-    's9',
-    's10',
-    's11',
-    's12',
-    's13',
-    's14-found',
-    's16',
-    's17-return',
-  ],
+// The two paths a viewer can actually hear end to end, derived from the order
+// the lines are written in rather than restated here — a second copy of the
+// running order is a second thing to forget to update.
+// A first-time viewer has no member yet; a returning one skips creating one.
+const branchOnly = {
+  首次登入: new Set(['intro-again', 's14-found', 's17-return', 'cancel']),
+  再次登入: new Set(['intro', 's14-new', 's15', 's17-first', 'cancel']),
 };
+const paths = Object.fromEntries(
+  Object.entries(branchOnly).map(([name, skip]) => [
+    name,
+    Object.keys(lines).filter((cue) => !skip.has(cue)),
+  ]),
+);
 
 const stamp = (text) =>
   createHash('sha1')

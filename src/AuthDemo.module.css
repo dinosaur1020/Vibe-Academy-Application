@@ -49,7 +49,12 @@
    The spacer mirrors the rail so the card stays centred in the viewport,
    and the rail lives in its own column — it can never overlap the content. */
 .page {
-  --content-max: 1050px;
+  /* The card never grows past the width it has at the moment the rail
+     collapses into the dock (a 1200px viewport, where the gutter, rail and
+     gap resolve to 26.4 + 112.8 + 24 on each side). Past that point the extra
+     room goes to the rails, so the lesson keeps the proportions it was drawn
+     at instead of stretching. */
+  --content-max: 874px;
   --gutter: clamp(20px, 2.2vw, 36px);
   --rail-w: clamp(104px, 9.4vw, 154px);
   --rail-gap: clamp(18px, 2vw, 32px);
@@ -1188,7 +1193,7 @@ h1 {
   backdrop-filter: blur(14px);
 }
 .playbackInner {
-  max-width: var(--content-max, 1050px);
+  max-width: var(--content-max, 874px);
   min-height: 50px;
   margin: 0 auto;
   display: flex;
@@ -1846,7 +1851,6 @@ h1 {
    so the speaker moves down into the playback dock and the columns collapse. */
 @media (max-width: 1200px) {
   .page {
-    --content-max: 940px;
     --gutter: 28px;
     --rail-w: 0px;
     --rail-gap: 0px;

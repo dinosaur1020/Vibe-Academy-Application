@@ -40,11 +40,6 @@ export interface Playback {
   stepProgress: number;
   /** True once the packet has finished crossing, so the scene can react to it. */
   landed: boolean;
-  /** Milliseconds into this step's leg; before it starts there is no arrow. */
-  legElapsed: number;
-  /** Whether the leg has started at all. A step can spend its first half on
-   *  something that is not a packet crossing. */
-  legActive: boolean;
   narration: Narration;
   seekTo: (ms: number) => void;
   /** Rewind to the very start and play, straight from a user gesture. */
@@ -180,15 +175,7 @@ export function useFlow() {
   const span = live
     ? (segment?.ms ?? steps[stage].duration)
     : steps[stage].duration;
-  // A leg can start partway through its sentence. The flight is then measured
-  // against what is left of the clip, so the packet still lands with enough
-  // time for the scene to react to its arrival.
-  const lead = live ? span * (steps[stage].routeAt ?? 0) : 0;
-  const legElapsed = stepElapsed - lead;
-  const flight = flightMs(
-    stage,
-    hand ? undefined : live ? span - lead : clip?.ms,
-  );
+  const flight = flightMs(stage, hand ? undefined : clip?.ms);
   const playback: Playback = {
     timeline,
     segment,
@@ -200,9 +187,7 @@ export function useFlow() {
     flight,
     stepElapsed,
     stepProgress: span ? Math.min(1, stepElapsed / span) : 1,
-    landed: legElapsed >= flight,
-    legElapsed,
-    legActive: legElapsed >= 0,
+    landed: stepElapsed >= flight,
     narration,
     seekTo,
     restart,

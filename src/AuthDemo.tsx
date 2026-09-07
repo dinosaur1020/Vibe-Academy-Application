@@ -40,6 +40,8 @@ import {
 import {
   anchorNode,
   captionFor,
+  lastStage,
+  S,
   sceneNames,
   steps,
   type Action,
@@ -154,17 +156,19 @@ function PhonePreview({
   nodeRef: RefObject<HTMLDivElement | null>;
 }) {
   const cta = waiting ? ` ${s.cta}` : '';
-  const consent = view.stage === 4;
+  const consent = view.stage === S.consent;
   // The button stays put while the request it sent is still travelling, so the
   // arrow really does leave the thing you pressed and come back to it.
-  const ready = view.stage <= 3;
-  const sending = view.stage > 0 && view.stage <= 3;
-  const done = view.stage === 17;
-  // s6 happens in two halves. First the browser is simply sent back — no
-  // packet, no arrow, just the address turning into your own. Only then does
-  // the sentence reach the code, and only then does anything travel.
-  const onOwnSite = view.stage > 6 || (view.stage === 6 && progress >= 0.4);
-  const hasCode = view.stage > 6 || (view.stage === 6 && landed);
+  const ready = view.stage <= S.toGoogle;
+  const sending = view.stage > S.idle && view.stage <= S.toGoogle;
+  const done = view.stage === S.done;
+  // Two steps, in this order: the browser is sent back to its own address —
+  // nothing travelling, so no arrow — and only then does the code arrive, on
+  // the packet that lands in the URL.
+  const onOwnSite =
+    view.stage > S.back || (view.stage === S.back && progress >= 0.4);
+  const hasCode =
+    view.stage > S.codeBack || (view.stage === S.codeBack && landed);
   return (
     <div className={s.phoneColumn}>
       <div className={s.areaLabel}>
@@ -180,11 +184,14 @@ function PhonePreview({
               <i className={s.battery} />
             </span>
           </div>
-          <div className={s.addressBar} data-returning={view.stage === 6}>
+          <div
+            className={s.addressBar}
+            data-returning={view.stage === S.back || view.stage === S.codeBack}
+          >
             <LockKeyhole size={11} />
-            {view.stage >= 4 && !onOwnSite ? (
+            {view.stage >= S.consent && !onOwnSite ? (
               'accounts.google.com'
-            ) : hasCode && view.stage <= 7 ? (
+            ) : hasCode && view.stage <= S.codeToBackend ? (
               <>
                 my-app.example/?code=
                 <b>{demoCode(view.run)}</b>
@@ -259,7 +266,7 @@ function PhonePreview({
                     <GoogleMark />
                   )}
                   <span>
-                    {view.stage === 3
+                    {view.stage === S.toGoogle
                       ? '正在前往 Google…'
                       : sending
                         ? '正在為你登入…'
@@ -308,22 +315,22 @@ function PhonePreview({
             ) : (
               <>
                 <div className={s.processingIcon}>
-                  {view.stage === 5 ? (
+                  {view.stage === S.confirmed ? (
                     <GoogleMark />
                   ) : (
                     <Fingerprint size={36} strokeWidth={1.5} />
                   )}
                 </div>
                 <h2 className={s.processingTitle}>
-                  {view.stage === 5
+                  {view.stage === S.confirmed
                     ? 'Google 已確認身份'
-                    : view.stage === 6 && !onOwnSite
+                    : view.stage === S.back && !onOwnSite
                       ? '正在返回 My App…'
-                      : view.stage >= 6 && view.stage <= 8
+                      : view.stage >= S.back && view.stage <= S.codeHeld
                         ? '已回到 My App'
                         : '正在為你登入…'}
                 </h2>
-                {view.stage === 5 ? (
+                {view.stage === S.confirmed ? (
                   // The longest sentence in the lesson sits on this step, and
                   // it is about two things being different — so show both, one
                   // at a time, as the narration reaches each.
@@ -348,19 +355,22 @@ function PhonePreview({
                       ref={anchor('browser.screen')}
                     >
                       <i aria-hidden="true" />
-                      {view.stage === 6
-                        ? !onOwnSite
-                          ? '正從 Google 被導回你的 App'
-                          : !hasCode
-                            ? '已回到你的應用程式'
-                            : '網址帶回一組一次性代碼'
-                        : view.stage === 7
-                          ? '把代碼交給後端'
-                          : view.stage === 16
-                            ? '正在建立登入狀態'
-                            : '後端正在處理'}
+                      {view.stage === S.back
+                        ? onOwnSite
+                          ? '已回到你的應用程式'
+                          : '正從 Google 被導回你的 App'
+                        : view.stage === S.codeBack
+                          ? hasCode
+                            ? '網址帶回一組一次性代碼'
+                            : 'Google 正把代碼帶回網址'
+                          : view.stage === S.codeToBackend
+                            ? '把代碼交給後端'
+                            : view.stage === S.session
+                              ? '正在建立登入狀態'
+                              : '後端正在處理'}
                     </div>
-                    {view.stage === 6 || view.stage === 7 ? (
+                    {view.stage === S.codeBack ||
+                    view.stage === S.codeToBackend ? (
                       // The same ticket the address bar just delivered, so the
                       // next step's arrow has something to pick up.
                       <div
@@ -377,11 +387,15 @@ function PhonePreview({
                   </>
                 )}
                 <div className={s.phoneProgress}>
-                  <span style={{ width: `${(view.stage / 17) * 100}%` }} />
+                  <span
+                    style={{ width: `${(view.stage / lastStage) * 100}%` }}
+                  />
                 </div>
                 <div className={s.progressCaption}>
                   <span>MY APP</span>
-                  <span>{view.stage === 5 ? '尚未登入' : '處理中'}</span>
+                  <span>
+                    {view.stage === S.confirmed ? '尚未登入' : '處理中'}
+                  </span>
                 </div>
               </>
             )}
@@ -435,29 +449,29 @@ function SystemMap({
   const { stage, member } = view;
   const active = steps[stage].active;
   const backendStatus =
-    stage === 0 || stage === 4 || stage === 5
+    stage === S.idle || stage === S.consent || stage === S.confirmed
       ? '等待登入資料'
-      : stage < 8
+      : stage < S.codeHeld
         ? '準備登入流程'
-        : stage < 11
+        : stage < S.verify
           ? '已收到一次性代碼'
-          : stage === 11
+          : stage === S.verify
             ? '正在驗證憑證'
-            : stage < 13
+            : stage < S.lookup
               ? '身份已確認'
-              : stage < 16
+              : stage < S.session
                 ? '正在對應 App 會員'
-                : stage === 16
+                : stage === S.session
                   ? '建立登入狀態'
                   : '登入處理完成';
   const dbStatus =
-    stage === 13
+    stage === S.lookup
       ? '正在查找會員…'
-      : stage === 14
+      : stage === S.lookupResult
         ? member
           ? '找到 user 42'
           : '找不到既有會員'
-        : stage === 15
+        : stage === S.create
           ? '正在建立新會員…'
           : member
             ? '已有 1 位會員'
@@ -473,9 +487,9 @@ function SystemMap({
               <span>你的產品</span>
             </div>
             <span className={s.liveBadge}>
-              {stage === 0
+              {stage === S.idle
                 ? '等待開始'
-                : stage === 17
+                : stage === S.done
                   ? '已完成'
                   : paused
                     ? '已暫停'
@@ -500,19 +514,22 @@ function SystemMap({
                 {/* Sized like the database's table so the two cards match; it
                     is where the steps with nothing moving show their work. */}
                 <div className={s.nodeDetail}>
-                  {stage === 8 &&
+                  {stage === S.codeHeld &&
                     codeFacts.map(([label, at]) => (
                       <span key={label} className={beat(progress, at)}>
                         <span className={s.factDot} />
                         {label}
                       </span>
                     ))}
-                  {(stage === 11 || stage === 12) &&
+                  {(stage === S.verify || stage === S.verified) &&
                     tokenChecks.map(([label, at]) => (
                       <span
                         key={label}
-                        className={beat(progress, stage === 12 ? 0 : at)}
-                        data-checked={stage === 12 || progress >= at}
+                        className={beat(
+                          progress,
+                          stage === S.verified ? 0 : at,
+                        )}
+                        data-checked={stage === S.verified || progress >= at}
                       >
                         <Check size={12} />
                         {label}
@@ -525,18 +542,18 @@ function SystemMap({
                 </div>
               </button>
               <div className={s.receiptSlot} ref={anchor('backend.receipt')}>
-                {stage >= 8 && (
+                {stage >= S.codeHeld && (
                   <button
                     className={s.receipt}
                     onClick={() =>
                       dispatch({
                         type: 'INSPECT',
-                        target: stage >= 11 ? 'token' : 'code',
+                        target: stage >= S.verify ? 'token' : 'code',
                       })
                     }
                   >
                     <KeyRound size={12} />
-                    {stage >= 11 ? 'ID Token' : '一次性代碼'}
+                    {stage >= S.verify ? 'ID Token' : '一次性代碼'}
                     <ArrowUpRight size={12} />
                   </button>
                 )}
@@ -605,12 +622,12 @@ function SystemMap({
               <span>第三方身份提供者</span>
             </div>
             <span className={s.liveBadge}>
-              {stage >= 5 ? '身份已確認' : '等待確認'}
+              {stage >= S.confirmed ? '身份已確認' : '等待確認'}
             </span>
           </div>
           <div className={s.exchangeHint}>
             <LockKeyhole size={12} />
-            {stage >= 9 && stage <= 12
+            {stage >= S.exchange && stage <= S.verified
               ? 'Backend 正在直接與 Google 溝通'
               : 'Google 只負責確認身份'}
           </div>
@@ -632,7 +649,7 @@ function SystemMap({
                   <span>第三方身份提供者</span>
                 </div>
                 <span className={s.googleState}>
-                  {stage >= 5 ? (
+                  {stage >= S.confirmed ? (
                     <>
                       <Check size={12} />
                       身份已確認
@@ -643,14 +660,20 @@ function SystemMap({
                 </span>
               </div>
               <div className={s.googleServices}>
-                <span ref={anchor('google.auth')} data-done={stage >= 5}>
+                <span
+                  ref={anchor('google.auth')}
+                  data-done={stage >= S.confirmed}
+                >
                   <Fingerprint size={17} />
                   <span>
                     帳號確認<small>Authentication</small>
                   </span>
                   <Check size={14} className={s.serviceCheck} />
                 </span>
-                <span ref={anchor('google.token')} data-done={stage >= 11}>
+                <span
+                  ref={anchor('google.token')}
+                  data-done={stage >= S.verify}
+                >
                   <ShieldCheck size={17} />
                   <span>
                     身分憑證<small>Identity Service</small>
@@ -680,7 +703,6 @@ function DataFlow({
   area,
   dispatch,
   elapsed,
-  active,
   flight,
 }: {
   view: Snapshot;
@@ -690,10 +712,8 @@ function DataFlow({
   version: number;
   area: RefObject<HTMLDivElement | null>;
   dispatch: Dispatch<Action>;
-  /** Time into this step's leg off whichever clock is driving it. */
+  /** Time into this step off whichever clock is driving it. */
   elapsed: number;
-  /** False while the step is still on something that is not a crossing. */
-  active: boolean;
   flight: number;
 }) {
   const markerId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
@@ -766,7 +786,7 @@ function DataFlow({
       setPoint({ x: p.x, y: p.y });
     }
   }, [geometry.path, elapsed, reduced, flight]);
-  if (!step.route || !geometry.path || !active) return null;
+  if (!step.route || !geometry.path) return null;
   const label =
     step.packetLabel ??
     (step.packet
@@ -827,19 +847,21 @@ function inspection(
     return {
       title: '一次性代碼 · Authorization Code',
       detail:
-        view.stage >= 9
+        view.stage >= S.exchange
           ? '後端正拿它向 Google 交換身分憑證，並附上只有後端知道的密鑰 — 這就是這一步必須在後端做的原因。'
           : '短效、一次性的兌換憑證。它不是密碼，也不是會員資料；後端還需要拿它向 Google 交換身分憑證。',
       rows: [
         [
           '傳輸路徑',
-          view.stage >= 9 ? 'Backend → Google' : 'Google → 瀏覽器 → Backend',
+          view.stage >= S.exchange
+            ? 'Backend → Google'
+            : 'Google → 瀏覽器 → Backend',
         ],
-        ['Code', view.stage >= 6 ? code : '尚未收到'],
+        ['Code', view.stage >= S.codeBack ? code : '尚未收到'],
         ['性質', '短效 · 一次性 · 非密碼'],
         // The narration teaches the client secret here, so the panel has to
         // show it — and show that it never leaves the backend.
-        ...(view.stage >= 9
+        ...(view.stage >= S.exchange
           ? ([['一併附上', '應用程式密鑰 client_secret · 只存在後端']] as [
               string,
               string,
@@ -851,17 +873,17 @@ function inspection(
     return {
       title: '身分憑證 · ID Token',
       detail:
-        view.stage >= 12
+        view.stage >= S.verified
           ? '後端已確認憑證來源、適用的 App 與有效期限，接著使用 Google 識別碼對應會員。'
           : '這是 Google 提供的身份資訊；收到後，Backend 還需要驗證憑證。',
       rows:
-        view.stage >= 10
+        view.stage >= S.tokenBack
           ? [
               ['傳輸路徑', 'Google → Backend'],
               ['Google 識別碼 sub', '108253…'],
               ['Email', 'dino@example.com'],
               ['名稱', 'Dino'],
-              ['驗證狀態', view.stage >= 12 ? '✓ 已驗證' : '尚未完成'],
+              ['驗證狀態', view.stage >= S.verified ? '✓ 已驗證' : '尚未完成'],
             ]
           : [['ID Token', '尚未收到']],
     };
@@ -874,7 +896,7 @@ function inspection(
         ['請求來源', 'My App'],
         [
           'App 識別碼 client_id',
-          view.stage >= 2 ? 'my-app-demo' : '後端準備中',
+          view.stage >= S.redirect ? 'my-app-demo' : '後端準備中',
         ],
         ['目的', '請 Google 確認使用者身份'],
       ],
@@ -895,9 +917,9 @@ function inspection(
             ['會員資料', '尚未建立'],
             [
               '查詢狀態',
-              view.stage >= 14
+              view.stage >= S.lookupResult
                 ? '找不到既有會員'
-                : view.stage === 13
+                : view.stage === S.lookup
                   ? '查詢中'
                   : '尚未查詢',
             ],
@@ -911,9 +933,12 @@ function inspection(
       rows: [
         [
           '帳號確認',
-          view.stage >= 5 ? '✓ Dino · dino@example.com' : '等待確認',
+          view.stage >= S.confirmed ? '✓ Dino · dino@example.com' : '等待確認',
         ],
-        ['身分憑證', view.stage >= 10 ? '已發出 ID Token' : '尚未發出'],
+        [
+          '身分憑證',
+          view.stage >= S.tokenBack ? '已發出 ID Token' : '尚未發出',
+        ],
         ['Google 密碼', '不會提供給 My App'],
       ],
     };
@@ -923,8 +948,14 @@ function inspection(
       detail:
         '你在這裡操作登入，瀏覽器負責前往 Google，再把一次性代碼帶回自己的後端。',
       rows: [
-        ['目前頁面', view.stage >= 4 && view.stage <= 6 ? 'Google' : 'My App'],
-        ['App 登入狀態', view.stage === 17 ? '✓ user 42 已登入' : '尚未登入'],
+        [
+          '目前頁面',
+          view.stage >= S.consent && view.stage <= S.back ? 'Google' : 'My App',
+        ],
+        [
+          'App 登入狀態',
+          view.stage === S.done ? '✓ user 42 已登入' : '尚未登入',
+        ],
       ],
     };
   return {
@@ -933,17 +964,17 @@ function inspection(
       '後端交換並驗證身分憑證，找到或建立自己的會員，最後建立 App 的登入狀態。',
     rows: [
       ['應用程式密鑰 client_secret', '只存在這裡，不會給瀏覽器'],
-      ['一次性代碼', view.stage >= 8 ? code : '尚未收到'],
+      ['一次性代碼', view.stage >= S.codeHeld ? code : '尚未收到'],
       [
         'ID Token',
-        view.stage >= 11
-          ? view.stage >= 12
+        view.stage >= S.verify
+          ? view.stage >= S.verified
             ? '✓ 已驗證'
             : '正在驗證'
           : '尚未收到',
       ],
-      ['App 會員對應', view.stage >= 16 ? 'user 42' : '尚未完成'],
-      ['App 登入', view.stage === 17 ? '✓ 已完成' : '尚未完成'],
+      ['App 會員對應', view.stage >= S.session ? 'user 42' : '尚未完成'],
+      ['App 登入', view.stage === S.done ? '✓ 已完成' : '尚未完成'],
     ],
   };
 }
@@ -967,8 +998,8 @@ function Inspector({
       if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
   }, [state.inspector]);
-  const confirmed = view.stage === 5;
-  const code = view.stage === 8;
+  const confirmed = view.stage === S.confirmed;
+  const code = view.stage === S.codeHeld;
   return (
     <section
       ref={inspectorRef}
@@ -1337,8 +1368,7 @@ export function AuthDemo() {
               />
               <DataFlow
                 flight={playback.flight}
-                elapsed={playback.legElapsed}
-                active={playback.legActive}
+                elapsed={playback.stepElapsed}
                 view={state}
                 refs={refs}
                 anchors={elements}

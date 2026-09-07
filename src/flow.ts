@@ -24,7 +24,36 @@ export const anchorNode: Record<AnchorId, NodeId> = {
   'google.token': 'google',
   db: 'db',
 };
+/**
+ * The lesson's steps by name. Adding one is a matter of adding its name here
+ * and its entry to `steps` in the same position — nothing downstream counts.
+ */
+export type StageId =
+  | 'idle'
+  | 'request'
+  | 'redirect'
+  | 'toGoogle'
+  | 'consent'
+  | 'confirmed'
+  | 'back'
+  | 'codeBack'
+  | 'codeToBackend'
+  | 'codeHeld'
+  | 'exchange'
+  | 'tokenBack'
+  | 'verify'
+  | 'verified'
+  | 'lookup'
+  | 'lookupResult'
+  | 'create'
+  | 'session'
+  | 'done';
 export interface Step {
+  /** Stable name for this step. Every comparison in the app goes through S,
+   *  so inserting a step here never silently shifts anyone else's meaning. */
+  id: StageId;
+  /** The clip this step narrates by default; branches override it in cueFor. */
+  cue: CueId;
   title: string;
   caption: string;
   scene: number;
@@ -34,14 +63,11 @@ export interface Step {
   packet?: 'request' | 'code' | 'token';
   /** Overrides the packet's own name when this leg carries something else. */
   packetLabel?: string;
-  /**
-   * How far into the narration the leg starts, when the first half of the
-   * sentence is about something else. Before it there is no arrow at all.
-   */
-  routeAt?: number;
 }
 export const steps: Step[] = [
   {
+    id: 'idle',
+    cue: 'intro',
     title: '一顆按鈕，開始一段幕後旅程',
     caption:
       '從左邊的 Google 登入按鈕開始。你可以隨時暫停，點開資料，看看系統正在交換什麼。',
@@ -50,6 +76,8 @@ export const steps: Step[] = [
     active: [],
   },
   {
+    id: 'request',
+    cue: 's1',
     title: 'My App 收到登入請求',
     caption: '瀏覽器先告訴自己的後端：我想使用 Google 登入。',
     scene: 1,
@@ -59,6 +87,8 @@ export const steps: Step[] = [
     packet: 'request',
   },
   {
+    id: 'redirect',
+    cue: 's2',
     title: '後端把登入網址交回瀏覽器',
     caption:
       '後端準備好登入網址，交回瀏覽器；網址裡說明了是哪個 App 要確認身份。',
@@ -73,6 +103,8 @@ export const steps: Step[] = [
     packetLabel: '登入網址',
   },
   {
+    id: 'toGoogle',
+    cue: 's3',
     title: '瀏覽器前往 Google',
     caption:
       '你的 App 請 Google 協助確認身份。Google 密碼只會交給 Google，不會交給 My App。',
@@ -83,6 +115,8 @@ export const steps: Step[] = [
     packet: 'request',
   },
   {
+    id: 'consent',
+    cue: 's4',
     title: '選擇你的 Google 帳號',
     caption:
       '現在位於模擬的 Google 畫面。你已登入這個 Google 帳號，選擇是否以它繼續。',
@@ -91,6 +125,8 @@ export const steps: Step[] = [
     active: ['google'],
   },
   {
+    id: 'confirmed',
+    cue: 's5',
     title: 'Google 已確認，My App 還沒登入',
     caption:
       'Google 已經確認這個帳號，但 My App 還需要完成自己的登入流程。這是兩件不同的事。',
@@ -99,6 +135,18 @@ export const steps: Step[] = [
     active: ['google'],
   },
   {
+    id: 'back',
+    cue: 's6',
+    title: '瀏覽器被導回你的 App',
+    caption:
+      'Google 把瀏覽器送回你的應用程式。這一步只是換回自己的網址，還沒有資料在傳輸。',
+    scene: 3,
+    duration: 600,
+    active: ['google', 'browser'],
+  },
+  {
+    id: 'codeBack',
+    cue: 's6b',
     title: 'Google 讓瀏覽器帶回一次性代碼',
     caption:
       'Google 透過瀏覽器把一次性 Code 帶回 App。接下來，瀏覽器會將它送到 Backend。',
@@ -107,11 +155,10 @@ export const steps: Step[] = [
     active: ['google', 'browser'],
     route: ['google.auth', 'browser.screen'],
     packet: 'code',
-    // "Google sends the browser back to your app" comes first and is not a
-    // packet crossing; the code only travels once the sentence reaches it.
-    routeAt: 0.55,
   },
   {
+    id: 'codeToBackend',
+    cue: 's7',
     title: '瀏覽器將 Code 交給 Backend',
     caption:
       '這一段經過瀏覽器；稍後交換身分憑證，才是 Backend 直接與 Google 溝通。',
@@ -122,6 +169,8 @@ export const steps: Step[] = [
     packet: 'code',
   },
   {
+    id: 'codeHeld',
+    cue: 's8',
     title: '拿到 Code，還不等於登入成功',
     caption:
       '這是一張短效、一次性的兌換憑證。它不是 Google 密碼，也不是你的 App 會員資料。',
@@ -130,6 +179,8 @@ export const steps: Step[] = [
     active: ['backend'],
   },
   {
+    id: 'exchange',
+    cue: 's9',
     title: 'Backend 用 Code 交換身分憑證',
     caption:
       '後端直接向 Google 交換憑證。這是系統自動完成的工作，不需要使用者再按一個按鈕。',
@@ -140,6 +191,8 @@ export const steps: Step[] = [
     packet: 'code',
   },
   {
+    id: 'tokenBack',
+    cue: 's10',
     title: 'Google 回傳 ID Token',
     caption:
       'Google 回傳一份身分憑證。後端將確認這份憑證，再使用其中的身份資訊。',
@@ -150,6 +203,8 @@ export const steps: Step[] = [
     packet: 'token',
   },
   {
+    id: 'verify',
+    cue: 's11',
     title: 'Backend 正在驗證身分憑證',
     caption:
       '後端確認憑證來源、適用的 App 與有效期限。收到憑證之後，還要確認它可以被信任。',
@@ -158,6 +213,8 @@ export const steps: Step[] = [
     active: ['backend'],
   },
   {
+    id: 'verified',
+    cue: 's12',
     title: '身份已確認，接著找自己的會員',
     caption:
       'Backend 現在取得了 Google 提供、並經過驗證的身份資訊，接著要找出這是 My App 裡的哪位會員。',
@@ -166,6 +223,8 @@ export const steps: Step[] = [
     active: ['backend'],
   },
   {
+    id: 'lookup',
+    cue: 's13',
     title: '這個 Google 身份有會員了嗎？',
     caption:
       '後端使用 Google 的穩定帳號識別碼 sub 查找會員。Email 是顯示資料，不用來當唯一識別碼。',
@@ -175,6 +234,8 @@ export const steps: Step[] = [
     route: ['backend', 'db'],
   },
   {
+    id: 'lookupResult',
+    cue: 's14-new',
     title: '查詢會員資料',
     caption: '相同的 Google 身份，對應到相同的 App 會員。',
     scene: 5,
@@ -182,6 +243,8 @@ export const steps: Step[] = [
     active: ['db'],
   },
   {
+    id: 'create',
+    cue: 's15',
     title: '第一次登入，也可以完成註冊',
     caption:
       '資料庫還沒有這位會員，My App 使用已確認的 Google 身份，建立自己的 user 42。',
@@ -190,6 +253,8 @@ export const steps: Step[] = [
     active: ['backend', 'db'],
   },
   {
+    id: 'session',
+    cue: 's16',
     title: 'My App 建立自己的登入狀態',
     caption:
       '找到或建立會員後，App 還要建立登入狀態，讓這個瀏覽器以 user 42 的身份使用產品。',
@@ -199,6 +264,8 @@ export const steps: Step[] = [
     route: ['backend', 'browser.screen'],
   },
   {
+    id: 'done',
+    cue: 's17-first',
     title: 'Google 身份，對應到你的 App 會員',
     caption:
       'Google 負責確認 Google 帳號；My App 負責把這個身份對應到自己的會員 user 42。',
@@ -207,6 +274,13 @@ export const steps: Step[] = [
     active: ['browser'],
   },
 ];
+/** Stage index by name. The only place a step's position is written down. */
+export const S = Object.fromEntries(
+  steps.map((step, index) => [step.id, index]),
+) as Record<StageId, number>;
+/** The last step: where the lesson ends rather than waits for a press. */
+export const lastStage = steps.length - 1;
+
 export const sceneNames = [
   '開始登入',
   '確認身份',
@@ -267,7 +341,7 @@ export type Action =
   | { type: 'NARRATING'; on: boolean };
 export function initialState(run = 0): FlowState {
   return {
-    stage: 0,
+    stage: S.idle,
     member: false,
     returning: false,
     run,
@@ -288,7 +362,7 @@ function enter(state: FlowState, stage: number): FlowState {
     ...state,
     stage,
     elapsed: 0,
-    member: state.member || (stage === 16 && state.stage === 15),
+    member: state.member || (stage === S.session && state.stage === S.create),
     // With nothing narrating, there is only one pointer to speak of.
     ...(state.narrating ? null : { audio: stage, audioElapsed: 0 }),
   };
@@ -304,7 +378,9 @@ function narrate(state: FlowState, stage: number): FlowState {
 }
 /** Where the narration goes next; the branch depends only on which run it is. */
 function nextAudio(state: FlowState): number {
-  return state.audio === 14 && state.returning ? 16 : state.audio + 1;
+  return state.audio === S.lookupResult && state.returning
+    ? S.session
+    : state.audio + 1;
 }
 /**
  * A gate holds the narration until the viewer clears it on the phone. Pressing
@@ -318,7 +394,7 @@ function release(state: FlowState): FlowState {
 export function reducer(state: FlowState, action: Action): FlowState {
   switch (action.type) {
     case 'START':
-      return state.stage === 0 && !state.inspector
+      return state.stage === S.idle && !state.inspector
         ? release(
             enter(
               {
@@ -327,19 +403,19 @@ export function reducer(state: FlowState, action: Action): FlowState {
                 hand: true,
                 justCancelled: false,
               },
-              1,
+              S.request,
             ),
           )
         : state;
     case 'CONTINUE':
-      return state.stage === 4 && !state.inspector
-        ? release(enter({ ...state, hand: true }, 5))
+      return state.stage === S.consent && !state.inspector
+        ? release(enter({ ...state, hand: true }, S.confirmed))
         : state;
     // Cancelling abandons the run rather than nudging the view, so the
     // narration goes back to the start with it and picks up its own cue.
     case 'CANCEL':
-      return state.stage === 4
-        ? narrate({ ...state, justCancelled: true }, 0)
+      return state.stage === S.consent
+        ? narrate({ ...state, justCancelled: true }, S.idle)
         : state;
     case 'TICK': {
       // The view's own clock: it only runs while the viewer is driving.
@@ -368,7 +444,7 @@ export function reducer(state: FlowState, action: Action): FlowState {
       if (action.run !== state.run || action.stage !== state.audio)
         return state;
       // Nothing follows the last step, and a gate waits for the viewer.
-      return state.audio >= 17 ||
+      return state.audio >= lastStage ||
         (isStop(state.audio) && state.stage <= state.audio)
         ? { ...state, held: true }
         : narrate(state, nextAudio(state));
@@ -405,7 +481,7 @@ export function reducer(state: FlowState, action: Action): FlowState {
     // Whether narration drives is a fact about the browser, not about the run,
     // so starting over must not quietly relink the two pointers.
     case 'LOGOUT':
-      return state.stage === 17
+      return state.stage === S.done
         ? {
             ...initialState(state.run + 1),
             member: state.member,
@@ -418,11 +494,11 @@ export function reducer(state: FlowState, action: Action): FlowState {
   }
 }
 export function captionFor(view: Snapshot): string {
-  if (view.stage === 14)
+  if (view.stage === S.lookupResult)
     return view.member
       ? '找到 user 42！這個 Google 身份已經有會員資料，不必再建立帳號。'
       : '找不到這個 Google 身份對應的會員。接著，My App 會自動建立一個新帳號。';
-  if (view.stage === 17 && view.returning)
+  if (view.stage === S.done && view.returning)
     return '同一個 Google 身份已經有會員資料，這次直接登入，不需要再建立帳號。';
   return steps[view.stage].caption;
 }
@@ -436,7 +512,7 @@ export function isGate(stage: number): boolean {
  * it is the end of the lesson: nothing to press, and nothing to scrub past.
  */
 export function isStop(stage: number): boolean {
-  return isGate(stage) && stage !== 17;
+  return isGate(stage) && stage !== lastStage;
 }
 /**
  * True while the demo is parked waiting for the viewer. With narration that is
@@ -449,7 +525,9 @@ export function isWaiting(state: FlowState): boolean {
   );
 }
 function nextStage(state: FlowState): number {
-  return state.stage === 14 && state.member ? 16 : state.stage + 1;
+  return state.stage === S.lookupResult && state.member
+    ? S.session
+    : state.stage + 1;
 }
 
 export type CueId =
@@ -462,6 +540,7 @@ export type CueId =
   | 's4'
   | 's5'
   | 's6'
+  | 's6b'
   | 's7'
   | 's8'
   | 's9'
@@ -479,11 +558,11 @@ export type CueId =
 /** Narration cue for the live state. Branches exactly like captionFor(). */
 export function cueFor(state: FlowState): CueId {
   const { stage, member, returning } = state;
-  if (stage === 0)
+  if (stage === S.idle)
     return state.justCancelled ? 'cancel' : returning ? 'intro-again' : 'intro';
-  if (stage === 14) return member ? 's14-found' : 's14-new';
-  if (stage === 17) return returning ? 's17-return' : 's17-first';
-  return `s${stage}` as CueId;
+  if (stage === S.lookupResult && member) return 's14-found';
+  if (stage === S.done && returning) return 's17-return';
+  return steps[stage].cue;
 }
 export function clipOf(cue: CueId | undefined): NarrationClip | undefined {
   return cue ? narration[cue] : undefined;
@@ -501,8 +580,8 @@ export interface Segment {
 /** Stage order for one run: a returning member skips the create-account step. */
 export function stagesFor(returning: boolean): number[] {
   const stages = [];
-  for (let stage = 0; stage <= 17; stage++)
-    if (!(returning && stage === 15)) stages.push(stage);
+  for (let stage = 0; stage < steps.length; stage++)
+    if (!(returning && stage === S.create)) stages.push(stage);
   return stages;
 }
 /**
@@ -540,7 +619,7 @@ export function stateAtStage(base: FlowState, target: number): FlowState {
     member: base.returning,
     returning: base.returning,
   };
-  while (state.stage !== target && state.stage < 17)
+  while (state.stage !== target && state.stage < lastStage)
     state = enter(state, nextStage(state));
   // Seeking is a narration gesture: both pointers land together.
   return {

@@ -273,7 +273,7 @@ describe('音訊驅動', () => {
     await time(2500);
     expect(screen.getByRole('button', { name: '繼續' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: '繼續' }));
-    await time(12000);
+    await time(14000);
     expect(screen.getByText(/Welcome, Dino/)).toBeInTheDocument();
   });
   it('旁白在講的時候，封包真的在箭頭上飛', async () => {
@@ -319,7 +319,7 @@ describe('音訊驅動', () => {
     await time(200);
     expect(line.className).toContain(css.beatOn);
   });
-  it('先把瀏覽器倒回自己的網址，第二句話才拉出箭頭送代碼', async () => {
+  it('先把瀏覽器倒回自己的網址，下一段才拉出箭頭送代碼', async () => {
     useTimers();
     render(<AuthDemo />);
     await ends();
@@ -330,6 +330,7 @@ describe('音訊驅動', () => {
       await time(100);
       await ends();
     }
+    // s4 runs out on the consent gate, so the press is what releases s5.
     await ends();
     fireEvent.click(screen.getByRole('button', { name: '繼續' }));
     await time(100);
@@ -337,26 +338,23 @@ describe('音訊驅動', () => {
     await time(200);
     const bar = () =>
       document.querySelector(`.${css.addressBar}`)!.textContent ?? '';
-    const ticket = document.querySelector(`.${css.codeTicket}`)!;
     const arrow = () =>
       screen.queryByRole('button', { name: '檢查一次性代碼' });
-    // s6 opens with the browser still on Google. Nothing is crossing yet, so
-    // there is no arrow to draw.
+    // s6 sends the browser back and nothing else: no packet, so no arrow.
     expect(bar()).toContain('accounts.google.com');
     expect(arrow()).toBeNull();
-    // Halfway through the first sentence the browser is simply back on its own
-    // address — still no packet, still no code.
-    narrator().currentTime = 2.8;
+    narrator().currentTime = 2;
     await time(200);
     expect(bar()).toContain('my-app.example');
     expect(bar()).not.toContain('code=');
     expect(arrow()).toBeNull();
-    expect(ticket.className).not.toContain(css.beatOn);
-    // Only the second sentence sends anything across.
-    narrator().currentTime = 3.6;
+    // Only the next step carries anything across.
+    await ends();
     await time(200);
     expect(arrow()).not.toBeNull();
-    narrator().currentTime = 5.2;
+    const ticket = document.querySelector(`.${css.codeTicket}`)!;
+    expect(ticket.className).not.toContain(css.beatOn);
+    narrator().currentTime = 2.5;
     await time(200);
     expect(bar()).toContain('my-app.example/?code=DEMO-CODE-001');
     expect(ticket.className).toContain(css.beatOn);
