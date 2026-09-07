@@ -115,7 +115,7 @@ export const steps: Step[] = [
     title: '瀏覽器前往 Google',
     caption:
       '你的 App 請 Google 協助確認身份。Google 密碼只會交給 Google，不會交給 My App。',
-    scene: 1,
+    scene: 2,
     duration: 700,
     active: ['browser', 'google'],
     route: ['browser.action', 'google.auth'],
@@ -127,7 +127,7 @@ export const steps: Step[] = [
     title: '選擇你的 Google 帳號',
     caption:
       '現在位於模擬的 Google 畫面。你已登入這個 Google 帳號，選擇是否以它繼續。',
-    scene: 2,
+    scene: 3,
     duration: 0,
     active: ['google'],
   },
@@ -137,7 +137,7 @@ export const steps: Step[] = [
     title: 'Google 確認了這個帳號是你的',
     caption:
       '你按下繼續，Google 確認了你就是這個帳號的主人。這一步只發生在 Google 這邊。',
-    scene: 2,
+    scene: 3,
     duration: 1400,
     active: ['browser', 'google'],
     // The press itself is the packet, so the button it left has to still be
@@ -153,7 +153,7 @@ export const steps: Step[] = [
     title: 'Google 已確認，My App 還沒登入',
     caption:
       'Google 已經確認這個帳號，但 My App 還需要完成自己的登入流程。這是兩件不同的事。',
-    scene: 2,
+    scene: 3,
     duration: 2000,
     active: ['browser', 'google'],
   },
@@ -163,7 +163,7 @@ export const steps: Step[] = [
     title: '瀏覽器被導回你的 App',
     caption:
       'Google 把瀏覽器送回你的應用程式。這一步只是換回自己的網址，還沒有資料在傳輸。',
-    scene: 3,
+    scene: 4,
     duration: 600,
     active: ['google', 'browser'],
   },
@@ -173,7 +173,7 @@ export const steps: Step[] = [
     title: 'Google 讓瀏覽器帶回一次性代碼',
     caption:
       'Google 透過瀏覽器把一次性 Code 帶回 App。接下來，瀏覽器會將它送到 Backend。',
-    scene: 3,
+    scene: 5,
     duration: 700,
     active: ['google', 'browser'],
     route: ['google.auth', 'browser.screen'],
@@ -185,7 +185,7 @@ export const steps: Step[] = [
     title: '瀏覽器將 Code 交給 Backend',
     caption:
       '這一段經過瀏覽器；稍後交換身分憑證，才是 Backend 直接與 Google 溝通。',
-    scene: 3,
+    scene: 5,
     duration: 700,
     active: ['browser', 'backend'],
     route: ['browser.screen', 'backend.receipt'],
@@ -197,7 +197,7 @@ export const steps: Step[] = [
     title: '拿到 Code，還不等於登入成功',
     caption:
       '這是一張短效、一次性的兌換憑證。它不是 Google 密碼，也不是你的 App 會員資料。',
-    scene: 3,
+    scene: 5,
     duration: 2000,
     active: ['backend'],
   },
@@ -207,7 +207,7 @@ export const steps: Step[] = [
     title: 'Backend 用 Code 交換身分憑證',
     caption:
       '後端直接向 Google 交換憑證。這是系統自動完成的工作，不需要使用者再按一個按鈕。',
-    scene: 4,
+    scene: 6,
     duration: 700,
     active: ['backend', 'google'],
     // Down out of the backend and in through the top of the credential row:
@@ -223,7 +223,7 @@ export const steps: Step[] = [
     title: 'Google 回傳 ID Token',
     caption:
       'Google 回傳一份身分憑證。後端將確認這份憑證，再使用其中的身份資訊。',
-    scene: 4,
+    scene: 6,
     duration: 700,
     active: ['google', 'backend'],
     route: ['google.token', 'backend.receipt'],
@@ -236,7 +236,7 @@ export const steps: Step[] = [
     title: 'Backend 正在驗證身分憑證',
     caption:
       '後端確認憑證來源、適用的 App 與有效期限。收到憑證之後，還要確認它可以被信任。',
-    scene: 4,
+    scene: 7,
     duration: 600,
     active: ['backend'],
   },
@@ -246,7 +246,7 @@ export const steps: Step[] = [
     title: '身份已確認，接著找自己的會員',
     caption:
       'Backend 現在取得了 Google 提供、並經過驗證的身份資訊，接著要找出這是 My App 裡的哪位會員。',
-    scene: 4,
+    scene: 7,
     duration: 600,
     active: ['backend'],
   },
@@ -256,7 +256,7 @@ export const steps: Step[] = [
     title: '這個 Google 身份有會員了嗎？',
     caption:
       '後端使用 Google 的穩定帳號識別碼 sub 查找會員。Email 是顯示資料，不用來當唯一識別碼。',
-    scene: 5,
+    scene: 8,
     duration: 700,
     active: ['backend', 'db'],
     // Over the top of both cards rather than through the gap between them, so
@@ -269,7 +269,7 @@ export const steps: Step[] = [
     cue: 's14-new',
     title: '查詢會員資料',
     caption: '相同的 Google 身份，對應到相同的 App 會員。',
-    scene: 5,
+    scene: 8,
     duration: 600,
     active: ['db'],
   },
@@ -279,7 +279,7 @@ export const steps: Step[] = [
     title: '第一次登入，也可以完成註冊',
     caption:
       '資料庫還沒有這位會員，My App 使用已確認的 Google 身份，建立自己的 user 42。',
-    scene: 5,
+    scene: 8,
     duration: 600,
     active: ['backend', 'db'],
   },
@@ -289,7 +289,7 @@ export const steps: Step[] = [
     title: 'My App 建立自己的登入狀態',
     caption:
       '找到或建立會員後，App 還要建立登入狀態，讓這個瀏覽器以 user 42 的身份使用產品。',
-    scene: 5,
+    scene: 8,
     duration: 700,
     active: ['backend', 'browser'],
     route: ['backend', 'browser.screen'],
@@ -300,7 +300,7 @@ export const steps: Step[] = [
     title: 'Google 身份，對應到你的 App 會員',
     caption:
       'Google 負責確認 Google 帳號；My App 負責把這個身份對應到自己的會員 user 42。',
-    scene: 5,
+    scene: 8,
     duration: 0,
     active: ['browser'],
   },
@@ -312,12 +312,17 @@ export const S = Object.fromEntries(
 /** The last step: where the lesson ends rather than waits for a press. */
 export const lastStage = steps.length - 1;
 
+/** The stage strip above the demo. Each step names the scene it belongs to, so
+ *  reading the strip on its own is a recap of the whole flow. */
 export const sceneNames = [
-  '開始登入',
+  '按下按鈕',
+  '前往 Google',
   '確認身份',
+  '導回 App',
   '帶回代碼',
+  '換取憑證',
   '驗證憑證',
-  '登入 App',
+  '對應會員',
 ];
 export interface Snapshot {
   stage: number;
@@ -418,9 +423,12 @@ function nextAudio(state: FlowState): number {
  * the button never moves the narration itself — it only lifts this hold.
  */
 function release(state: FlowState): FlowState {
-  return state.held && state.stage > state.audio
-    ? narrate(state, nextAudio(state))
-    : state;
+  if (!state.held || state.stage <= state.audio) return state;
+  const moved = narrate(state, nextAudio(state));
+  // A paused narrator has no clock to hand the view to. Handing it over anyway
+  // parks the scene on a step with nothing to press — so the press that
+  // cleared the gate goes on driving until the narration is asked back.
+  return state.paused ? { ...moved, hand: true } : moved;
 }
 export function reducer(state: FlowState, action: Action): FlowState {
   switch (action.type) {

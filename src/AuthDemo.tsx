@@ -175,9 +175,6 @@ function PhonePreview({
     view.stage > S.codeBack || (view.stage === S.codeBack && landed);
   return (
     <div className={s.phoneColumn}>
-      <div className={s.areaLabel}>
-        <span className={s.blueDot} /> 你看得見的畫面 <span>BROWSER</span>
-      </div>
       <div className={s.phone} ref={nodeRef}>
         <div className={s.phoneScreen}>
           <div className={s.statusBar}>
@@ -1392,7 +1389,6 @@ export function AuthDemo() {
                   )}
                 </span>
                 {name}
-                {i < 4 && <ChevronRight size={12} />}
               </li>
             ))}
           </ol>

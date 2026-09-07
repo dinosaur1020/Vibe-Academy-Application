@@ -285,11 +285,26 @@ h1 {
   border-bottom: 1px solid #eeeef0;
   padding-bottom: 14px;
   gap: 0;
+  position: relative;
+}
+/* One rail through the badges instead of a chevron per gap: eight of those
+   would eat the width the titles need. The badges have their own background
+   and sit above it, so the line reads as running between them. */
+.sceneStrip::before {
+  content: '';
+  position: absolute;
+  top: 11px;
+  left: 6.25%;
+  right: 6.25%;
+  height: 1px;
+  background: #e8e8ea;
 }
 .sceneStrip li {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
+  text-align: center;
+  gap: 6px;
   flex: 1;
   font-size: 12px;
   color: #9498a1;
@@ -297,6 +312,7 @@ h1 {
   font-weight: 500;
 }
 .sceneStrip li > span {
+  position: relative;
   width: 23px;
   height: 23px;
   background: #f3f3f5;
@@ -306,13 +322,6 @@ h1 {
   justify-content: center;
   font-size: 12px;
   font-family: monospace;
-}
-.sceneStrip li > svg {
-  margin: auto;
-  color: #c6c5ca;
-}
-.sceneStrip li:last-child {
-  flex: 0.76;
 }
 .sceneStrip .currentScene {
   color: #7c3aed;
@@ -384,49 +393,24 @@ h1 {
   }
 }
 .stageArea {
-  /* Both columns hang off one height so the phone and the last system
-     card end on the same line; only the phone side still carries a label,
-     so the system side reserves the same space to stay level with it. */
+  /* Both columns hang off one height so the phone and the last system card
+     end on the same line. Neither side carries a label any more, so both
+     start at the top of this area. */
   --stage-h: 450px;
-  --label-h: 34px;
   position: relative;
   display: grid;
   grid-template-columns: 36% 1fr;
   gap: 22px;
   align-items: start;
 }
-.areaLabel {
-  height: 24px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 600;
-  font-size: 12px;
-  color: #596475;
-  margin-bottom: 10px;
-}
-.areaLabel > span:last-child {
-  margin-left: auto;
-  font-size: 12px;
-  letter-spacing: 1.25px;
-  color: #9da5b1;
-  font-weight: 500;
-}
-.blueDot,
 .purpleDot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #3b82f6;
-}
-.purpleDot {
   background: #8b5cf6;
 }
 .phoneColumn {
   padding: 0 6px;
-}
-.systemColumn {
-  padding-top: var(--label-h);
 }
 .phone {
   width: 100%;
@@ -1852,9 +1836,6 @@ h1 {
   .intro {
     font-size: 16px;
   }
-  .areaLabel {
-    font-size: 13px;
-  }
   .nodeHeading strong {
     font-size: 14px;
   }
@@ -1900,10 +1881,6 @@ h1 {
   .googleNodeHeading strong {
     font-size: 12px;
   }
-  .areaLabel > span:last-child {
-    font-size: 12px;
-    letter-spacing: 0.7px;
-  }
 }
 /* Below this the rail no longer fits beside the card without squeezing it,
    so the speaker moves down into the playback dock and the columns collapse. */
@@ -1943,20 +1920,11 @@ h1 {
   }
   .stageArea {
     --stage-h: 466px;
-    --label-h: 0px;
     grid-template-columns: 1fr;
     gap: 20px;
   }
   .systemBoxes {
     min-height: 0;
-  }
-  .areaLabel {
-    font-size: 13px;
-    max-width: 100%;
-    margin-bottom: 14px;
-  }
-  .areaLabel > span:last-child {
-    font-size: 12px;
   }
   .phone {
     max-width: 268px;
@@ -2115,35 +2083,28 @@ h1 {
     margin: 13px 0 20px;
     line-height: 1.9;
   }
+  /* Eight across will not fit a phone, so they go two rows of four — and the
+     rail, which only makes sense along a single row, comes off. */
   .sceneStrip {
     margin-bottom: 17px;
     padding-bottom: 15px;
-    gap: 7px;
-    justify-content: space-between;
+    flex-wrap: wrap;
+    row-gap: 14px;
+  }
+  .sceneStrip::before {
+    display: none;
   }
   .sceneStrip li {
-    flex: initial !important;
-    flex-direction: column;
+    flex: 0 0 25%;
     gap: 7px;
-    font-size: 12px;
   }
   .sceneStrip li > span {
     width: 22px;
     height: 22px;
   }
-  .sceneStrip li > svg {
-    display: none;
-  }
   .experiment {
     padding: 13px 9px;
     border-radius: 12px;
-  }
-  .areaLabel {
-    font-size: 12px;
-  }
-  .areaLabel > span:last-child {
-    font-size: 12px;
-    letter-spacing: 0.8px;
   }
   .stageArea {
     --stage-h: 456px;

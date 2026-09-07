@@ -6,6 +6,7 @@ import {
   lastStage,
   reducer,
   S,
+  sceneNames,
   steps,
   type FlowState,
 } from '../flow';
@@ -117,6 +118,39 @@ describe('Google 登入教學狀態機', () => {
     expect(started.audio).toBe(S.request);
     expect(started.held).toBe(false);
   });
+  it('暫停的時候按按鈕，畫面照樣往下跑，不會卡在半路', () => {
+    // The narration held the opening gate, then the tab went to the background
+    // — or the viewer hit pause — and only then did they press the button.
+    const base = { ...initialState(), narrating: true };
+    const held = reducer(base, {
+      type: 'ADVANCE',
+      run: base.run,
+      stage: S.idle,
+    });
+    const started = reducer(reducer(held, { type: 'PAUSE' }), {
+      type: 'START',
+    });
+    expect(started.stage).toBe(S.request);
+    // Nothing else can move this step: it has no button and a paused clip
+    // will never report that it ended.
+    expect(advance(started).stage).toBe(S.redirect);
+    // The pause is still a pause: the narration stays where it was parked.
+    expect(started.paused).toBe(true);
+    expect(started.audio).toBe(S.request);
+  });
+  it('暫停的時候按繼續，也不會停在按鈕全灰的那一步', () => {
+    let state = { ...runUntil(start(), S.consent), narrating: true };
+    state = reducer(state, {
+      type: 'ADVANCE',
+      run: state.run,
+      stage: state.audio,
+    });
+    state = reducer(reducer(state, { type: 'PAUSE' }), { type: 'CONTINUE' });
+    expect(state.stage).toBe(S.granted);
+    // Both consent buttons are disabled on this step, so freezing here would
+    // leave the viewer with nothing on the phone to press at all.
+    expect(advance(state).stage).toBe(S.confirmed);
+  });
   it('步驟只用名字互相指涉，插一步不會讓別人的意思跑掉', () => {
     // Every position in the lesson is written down exactly once, here.
     const ids = steps.map((step) => step.id);
@@ -125,6 +159,19 @@ describe('Google 登入教學狀態機', () => {
     expect(lastStage).toBe(steps.length - 1);
     // Each step names its own clip rather than deriving one from its position.
     expect(new Set(steps.map((step) => step.cue)).size).toBe(steps.length);
+  });
+  it('每個步驟都落在一個階段裡，階段只會往前走', () => {
+    const scenes = steps.map((step) => step.scene);
+    for (const [stage, scene] of scenes.entries()) {
+      expect(scene, `stage ${stage}`).toBeGreaterThanOrEqual(1);
+      expect(scene, `stage ${stage}`).toBeLessThanOrEqual(sceneNames.length);
+    }
+    // No empty slot: every name on the strip has steps behind it.
+    expect(new Set(scenes).size).toBe(sceneNames.length);
+    // The strip only ever lights up forwards, so the grouping cannot jump
+    // back and forth between scenes as the lesson runs.
+    for (let i = 1; i < scenes.length; i++)
+      expect(scenes[i] - scenes[i - 1], `stage ${i}`).toBeGreaterThanOrEqual(0);
   });
   it('每條箭頭都指向確切的元件，而且都有可以退回的卡片', () => {
     const anchors = Object.keys(anchorNode);
