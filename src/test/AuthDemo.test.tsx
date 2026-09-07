@@ -75,6 +75,37 @@ describe('互動元件', () => {
     // What the backend checked stays on the card for the rest of the lesson.
     expect(detail()).toContain('還在有效期內');
   });
+  it('走到最後，播放列說完成了，狀態全打勾，而且告訴你可以回頭點', async () => {
+    vi.useFakeTimers({
+      toFake: [
+        'setTimeout',
+        'clearTimeout',
+        'requestAnimationFrame',
+        'cancelAnimationFrame',
+        'performance',
+      ],
+    });
+    render(<AuthDemo />);
+    const facts = () =>
+      [...document.querySelectorAll(`.${css.facts} button`)] as HTMLElement[];
+    // Nothing collected yet, but the row is already there to be clicked.
+    expect(facts()).toHaveLength(3);
+    expect(facts().every((b) => b.dataset.done === 'false')).toBe(true);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Continue with Google' }),
+    );
+    await time(2300);
+    fireEvent.click(screen.getByRole('button', { name: '繼續' }));
+    await time(15000);
+    // The dock knows the lesson ended — this used to read stage 17, which
+    // stopped being the last step when the flow grew.
+    expect(screen.getByText('這次登入已完成')).toBeInTheDocument();
+    expect(facts().every((b) => b.dataset.done === 'true')).toBe(true);
+    expect(screen.getByText(/回頭點點看/)).toBeInTheDocument();
+    // And the invitation is true: the chips open the panels.
+    fireEvent.click(screen.getByRole('button', { name: '檢查ID Token資料' }));
+    expect(screen.getByText('身分憑證 · ID Token')).toBeInTheDocument();
+  });
   it('停在同意畫面等你決定時，取消跟繼續一起浮在遮罩上', async () => {
     vi.useFakeTimers({
       toFake: [

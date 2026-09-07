@@ -733,7 +733,11 @@ function DataFlow({
   const markerId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const [geometry, setGeometry] = useState({ width: 1, height: 1, path: '' });
   const pathRef = useRef<SVGPathElement>(null);
-  const [point, setPoint] = useState({ x: 0, y: 0 });
+  const packetRef = useRef<HTMLButtonElement>(null);
+  /** The leg and the exact curve the packet was last placed on. The glide is
+   *  only ever for moving along one curve; landing on a different one — a new
+   *  leg, or the same leg re-measured — has to be a jump. */
+  const placedOn = useRef({ stage: -1, path: '' });
   const [reduced, setReduced] = useState(false);
   const step = steps[view.stage];
   const from = step.route?.[0],
@@ -808,7 +812,16 @@ function DataFlow({
       const path =
         `M ${p1.x} ${p1.y} C ${p1.x + na.x * pa} ${p1.y + na.y * pa},` +
         ` ${p2.x + nb.x * pb} ${p2.y + nb.y * pb}, ${p2.x} ${p2.y}`;
-      setGeometry({ width: parent.width, height: parent.height, path });
+      // Only when it really moved. A stage change resizes half the board, so
+      // the observer fires several times on the frames that matter most; an
+      // identical path must not cost another render of the whole lesson.
+      setGeometry((current) =>
+        current.path === path &&
+        current.width === parent.width &&
+        current.height === parent.height
+          ? current
+          : { width: parent.width, height: parent.height, path },
+      );
     };
     const observer = new ResizeObserver(measure);
     observer.observe(area.current);
@@ -822,15 +835,38 @@ function DataFlow({
     return () => observer.disconnect();
   }, [from, to, sides, area, refs, anchors, version, view.stage]);
   useLayoutEffect(() => {
-    const path = pathRef.current;
-    if (path && typeof path.getTotalLength === 'function') {
-      const p = path.getPointAtLength(
-        path.getTotalLength() *
-          (reduced ? 0.5 : Math.min(1, Math.max(0, elapsed) / flight)),
-      );
-      setPoint({ x: p.x, y: p.y });
+    const path = pathRef.current,
+      packet = packetRef.current;
+    if (!path || !packet || typeof path.getTotalLength !== 'function') return;
+    // React writes the same value on its own render; writing it here first
+    // means the point is never taken from the leg that just ended.
+    if (path.getAttribute('d') !== geometry.path)
+      path.setAttribute('d', geometry.path);
+    const p = path.getPointAtLength(
+      path.getTotalLength() *
+        (reduced ? 0.5 : Math.min(1, Math.max(0, elapsed) / flight)),
+    );
+    // Moved by transform rather than by left/top, and written straight to the
+    // node: positioning through React state re-rendered the whole lesson once
+    // per frame, and left/top invalidated layout with it. Both cost the most
+    // on the first frames of a leg, where the stage change is already
+    // rebuilding the phone, the cards and the anchors.
+    // The measuring pass runs first and re-renders this component, so the very
+    // first placement of a leg is still on the outgoing curve. Keying the jump
+    // on the curve as well as the stage is what stops the correction that
+    // follows from being animated across the board.
+    const jumped =
+      placedOn.current.stage !== view.stage ||
+      placedOn.current.path !== geometry.path;
+    placedOn.current = { stage: view.stage, path: geometry.path };
+    if (jumped) packet.style.transition = 'none';
+    packet.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`;
+    if (jumped) {
+      // Land on the new leg's start with no glide, then hand the glide back.
+      void packet.offsetWidth;
+      packet.style.transition = '';
     }
-  }, [geometry.path, elapsed, reduced, flight]);
+  }, [geometry.path, elapsed, reduced, flight, view.stage]);
   if (!step.route || !geometry.path) return null;
   const label =
     step.packetLabel ??
@@ -865,8 +901,8 @@ function DataFlow({
         />
       </svg>
       <button
+        ref={packetRef}
         className={s.packet}
-        style={{ left: point.x, top: point.y }}
         onClick={() =>
           dispatch({
             type: 'INSPECT',
@@ -1046,8 +1082,32 @@ function Inspector({
       if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
   }, [state.inspector]);
-  const confirmed = view.stage === S.confirmed;
-  const code = view.stage === S.codeHeld;
+  // What the lesson is actually collecting, in the order it collects it. Each
+  // one opens the panel that explains it, so the invitation to click is on
+  // screen the whole way through rather than only in the closing line.
+  const facts: [string, string, InspectId, boolean][] = [
+    [
+      '一次性代碼',
+      view.stage >= S.tokenBack
+        ? '已交換掉'
+        : view.stage >= S.codeBack
+          ? demoCode(view.run)
+          : '尚未取得',
+      'code',
+      view.stage >= S.codeBack,
+    ],
+    [
+      'ID Token',
+      view.stage >= S.verified
+        ? '已驗證'
+        : view.stage >= S.tokenBack
+          ? '已收到'
+          : '尚未取得',
+      'token',
+      view.stage >= S.tokenBack,
+    ],
+    ['App 會員', view.member ? 'user 42' : '尚未建立', 'db', view.member],
+  ];
   return (
     <section
       ref={inspectorRef}
@@ -1070,29 +1130,34 @@ function Inspector({
               </div>
             ))}
           </dl>
-        ) : confirmed ? (
-          <div className={s.comparison}>
-            <span>
-              <Check size={14} />
-              Google 已確認身份
-            </span>
-            <span>
-              <CircleHelp size={14} />
-              My App 尚未登入
-            </span>
-          </div>
-        ) : code ? (
-          <div className={s.comparison}>
-            <button
-              onClick={() => dispatch({ type: 'INSPECT', target: 'code' })}
-            >
-              <KeyRound size={14} />
-              查看一次性代碼
-              <ArrowUpRight size={12} />
-            </button>
-            <span>Code ≠ 密碼 ≠ App 會員</span>
-          </div>
-        ) : null}
+        ) : (
+          <>
+            <div className={s.facts}>
+              {facts.map(([label, value, target, done]) => (
+                <button
+                  key={label}
+                  data-done={done}
+                  onClick={() => dispatch({ type: 'INSPECT', target })}
+                  // Distinct from the packet's own "檢查一次性代碼": this one
+                  // opens the data, wherever that data currently is.
+                  aria-label={`檢查${label}資料`}
+                >
+                  {done ? <Check size={13} /> : <CircleHelp size={13} />}
+                  {label}
+                  <b>{value}</b>
+                  <ArrowUpRight size={11} />
+                </button>
+              ))}
+            </div>
+            {view.stage === S.done && (
+              <p className={s.replayHint}>
+                <MousePointer2 size={13} />
+                流程走完了 —— 回頭點點看 Backend、Users
+                DB，或任何一個飛過的封包，每一個都能打開看裡面裝了什麼。
+              </p>
+            )}
+          </>
+        )}
       </div>
       {details && (
         <button
@@ -1135,11 +1200,11 @@ function PlaybackControls({
     ? '按播放，開始語音解說'
     : state.paused
       ? '已暫停 · 按播放繼續'
-      : state.audio === 0
+      : state.audio === S.idle
         ? '等待你開始登入'
-        : state.audio === 4
+        : state.audio === S.consent
           ? '等待你確認 Google 帳號'
-          : state.audio === 17
+          : state.audio === lastStage
             ? '這次登入已完成'
             : state.hand
               ? '解說進行中 · 畫面由你操作'
@@ -1210,6 +1275,13 @@ function PlaybackControls({
         </button>
         <div className={s.playbackStatus}>
           <div className={s.playbackLabel}>
+            {/* Reads the narration pointer, like the sentence beside it: the
+                dock speaks for the clip, not for wherever the viewer has
+                clicked the scene to. */}
+            <span className={s.dockScene}>
+              <b>{`0${steps[state.audio].scene}`}</b>
+              {sceneNames[steps[state.audio].scene - 1]}
+            </span>
             <span>{label}</span>
             {waiting && <span className={s.waitingChip}>等你操作</span>}
           </div>

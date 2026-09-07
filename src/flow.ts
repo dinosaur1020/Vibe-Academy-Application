@@ -474,9 +474,14 @@ export function reducer(state: FlowState, action: Action): FlowState {
       return release(enter(state, nextStage(state)));
     }
     case 'CLOCK':
+      // A clip reports the same currentTime for several frames while it starts,
+      // and again between the audio clock's own updates. Re-rendering the
+      // lesson for a number that has not changed is pure cost, paid exactly
+      // when the packet is trying to get moving.
       return action.run !== state.run ||
         action.stage !== state.audio ||
-        state.paused
+        state.paused ||
+        action.elapsed === state.audioElapsed
         ? state
         : { ...state, audioElapsed: action.elapsed };
     case 'ADVANCE':

@@ -160,6 +160,20 @@ describe('Google 登入教學狀態機', () => {
     // Each step names its own clip rather than deriving one from its position.
     expect(new Set(steps.map((step) => step.cue)).size).toBe(steps.length);
   });
+  it('旁白時間沒動的時候，不重畫', () => {
+    // A clip reports the same currentTime for several frames while it starts.
+    // Identity, not equality: this is what lets React skip the render.
+    const state = { ...initialState(), narrating: true, audioElapsed: 1200 };
+    const tick = (elapsed: number) =>
+      reducer(state, {
+        type: 'CLOCK',
+        elapsed,
+        run: state.run,
+        stage: state.audio,
+      });
+    expect(tick(1200)).toBe(state);
+    expect(tick(1250).audioElapsed).toBe(1250);
+  });
   it('每個步驟都落在一個階段裡，階段只會往前走', () => {
     const scenes = steps.map((step) => step.scene);
     for (const [stage, scene] of scenes.entries()) {

@@ -282,8 +282,6 @@ h1 {
   margin: 0 0 18px;
   padding: 0;
   display: flex;
-  border-bottom: 1px solid #eeeef0;
-  padding-bottom: 14px;
   gap: 0;
   position: relative;
 }
@@ -1152,7 +1150,15 @@ h1 {
 .packet {
   pointer-events: auto;
   position: absolute;
+  left: 0;
+  top: 0;
   transform: translate(-50%, -50%);
+  /* Its own layer, and a glide short enough to read as one motion: whatever
+     the clock driving the step does — a clip that takes a few frames to report
+     its first currentTime, a re-measure mid-leg — the packet crosses smoothly
+     instead of catching up in steps. */
+  will-change: transform;
+  transition: transform 0.09s linear;
   background: #f5f3ff;
   border: 1px solid #c4b5fd;
   box-shadow: 0 3px 10px #0002;
@@ -1164,6 +1170,11 @@ h1 {
   padding: 6px 8px;
   color: #6d28d9;
   font-size: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .packet {
+    transition: none;
+  }
 }
 .packet > span {
   width: 5px;
@@ -1417,6 +1428,25 @@ h1 {
 .rateButton:hover,
 .muteButton:hover {
   background: #f7f6f9;
+}
+/* Where the narration is, in the eight-scene reading of the lesson. Static and
+   grey: the pulsing chip beside it is the one asking for something. */
+.dockScene {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #6c6b74 !important;
+  background: #f1f0f4;
+  border-radius: 999px;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+.dockScene > b {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 600;
+  color: #9b98a4;
 }
 .waitingChip {
   flex: 0 0 auto;
@@ -1732,30 +1762,56 @@ h1 {
 .logoutButton:hover {
   color: #6d6580;
 }
-.comparison {
+/* What the lesson has collected so far. Every one of them opens its own data
+   panel, so the row doubles as the standing answer to "can I click this?". */
+.facts {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   margin-top: 11px;
 }
-.comparison > span,
-.comparison > button {
+.facts > button {
   display: flex;
   align-items: center;
   gap: 5px;
   font-size: 12px;
-  padding: 5px 8px;
+  padding: 5px 9px;
   background: #ffffff88;
-  border-radius: 5px;
+  border: 1px solid #e3dcf6;
+  border-radius: 999px;
+  cursor: pointer;
   color: #6f6486;
 }
-.comparison > span:first-child {
-  color: #5d9c85;
+.facts > button > svg:first-child {
+  color: #a99cc4;
 }
-.comparison > button {
-  border: 1px solid #ddd6fe;
-  cursor: pointer;
+.facts b {
+  font-weight: 600;
   color: #7c3aed;
+}
+.facts > button > svg:last-child {
+  color: #b3a6cd;
+}
+.facts > button[data-done='true'] {
+  background: #fff;
+  border-color: #d9ceef;
+}
+.facts > button[data-done='true'] > svg:first-child {
+  color: #4ca583;
+}
+/* The way out of the lesson: the last step is where people look for one. */
+.replayHint {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 11px !important;
+  font-size: 12px !important;
+  line-height: 1.7 !important;
+  color: #8177a0 !important;
+}
+.replayHint > svg {
+  margin-top: 3px;
+  flex-shrink: 0;
 }
 .inspectorOpen {
   background: #fdf8ec;
@@ -2087,7 +2143,6 @@ h1 {
      rail, which only makes sense along a single row, comes off. */
   .sceneStrip {
     margin-bottom: 17px;
-    padding-bottom: 15px;
     flex-wrap: wrap;
     row-gap: 14px;
   }

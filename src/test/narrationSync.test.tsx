@@ -122,6 +122,12 @@ const ends = async () =>
   await act(async () => {
     fireEvent(narrator(), new Event('ended'));
   });
+// The packet is positioned with a transform, so its distance along the leg has
+// to be read out of that rather than off style.left.
+const along = (packet: HTMLElement) =>
+  parseFloat(
+    /translate\((-?[\d.]+)px/.exec(packet.style.transform)?.[1] ?? 'NaN',
+  );
 // The dock renders position and total as separate <time> nodes flanking the track.
 const clock = () =>
   [...document.querySelectorAll('time')].map((t) => t.textContent).join(' / ');
@@ -302,14 +308,14 @@ describe('音訊驅動', () => {
     );
     await time(200);
     const packet = screen.getByRole('button', { name: '檢查登入請求' });
-    expect(parseFloat(packet.style.left)).toBe(0);
+    expect(along(packet)).toBe(0);
     narrator().currentTime = 1.2;
     await time(200);
-    const midway = parseFloat(packet.style.left);
+    const midway = along(packet);
     expect(midway).toBeGreaterThan(0);
     narrator().currentTime = 3.2;
     await time(200);
-    expect(parseFloat(packet.style.left)).toBeGreaterThan(midway);
+    expect(along(packet)).toBeGreaterThan(midway);
   });
   it('停在同一個畫面的段落，也會照著旁白一句一句長出來', async () => {
     useTimers();
